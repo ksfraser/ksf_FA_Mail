@@ -18,6 +18,72 @@
  *
  * @package Ksfraser\FA\Mail
  */
+
+// -----------------------------------------------------------------------
+// Self-healing — runs at file-inclusion time (session.inc loads hooks.php
+// for ALL root-file extensions regardless of active status).
+//
+// FA's local_extension() hardcodes version '-', and writes path as
+// 'modules/<pkg>'.  Both break activation/functionality:
+//   - check_src_ext_version('-')    → false  (blocks activation)
+//   - path wrong for deploy layout  → hooks.php never loaded
+//
+// This function fixes both on every page load so activation succeeds and
+// hooks.php remains loadable after any future "Local" re-install.
+// -----------------------------------------------------------------------
+(function () {
+    global $path_to_root;
+
+    $paths = [$path_to_root . '/installed_extensions.php'];
+    $companyDir = $path_to_root . '/company';
+    if (is_dir($companyDir)) {
+        foreach (scandir($companyDir) as $comp) {
+            if (is_numeric($comp)) {
+                $paths[] = $companyDir . '/' . $comp . '/installed_extensions.php';
+            }
+        }
+    }
+
+    // Detect correct relative path for hooks.php discovery.
+    // UAT: modules at root level → 'ksf_FA_Mail'
+    // Prod: modules in modules/  → 'modules/ksf_FA_Mail'
+    $correctPath = 'ksf_FA_Mail';
+    if (file_exists($path_to_root . '/modules/ksf_FA_Mail/hooks.php')) {
+        $correctPath = 'modules/ksf_FA_Mail';
+    }
+
+    foreach ($paths as $file) {
+        if (!file_exists($file) || !is_writable($file)) {
+            continue;
+        }
+        $exts = [];
+        $next_extension_id = null;
+        include $file;
+        $changed = false;
+        foreach ($exts as $k => $ext) {
+            if (($ext['package'] ?? '') !== 'ksf_FA_Mail') {
+                continue;
+            }
+            if (($ext['version'] ?? '') === '-') {
+                $exts[$k]['version'] = '2.4.0';
+                $changed = true;
+            }
+            if (($ext['path'] ?? '') !== $correctPath) {
+                $exts[$k]['path'] = $correctPath;
+                $changed = true;
+            }
+        }
+        if ($changed) {
+            $content = "<?php\n\n\$installed_extensions = "
+                . var_export($exts, true) . ";\n";
+            if (isset($next_extension_id)) {
+                $content .= "\$next_extension_id = {$next_extension_id};\n";
+            }
+            file_put_contents($file, $content);
+        }
+    }
+})();
+
 class hooks_ksf_fa_mail extends hooks
 {
     public $module_name = 'ksf_FA_Mail';
@@ -47,56 +113,6 @@ class hooks_ksf_fa_mail extends hooks
         }
         if (!defined('SA_ksf_FA_MailPERSONAL')) {
             define('SA_ksf_FA_MailPERSONAL', true);
-        }
-        $this->fixInstalledVersion();
-    }
-
-    /**
-     * Ensure installed_extensions.php has the correct version for this module.
-     *
-     * FA's local_extension() always writes version '-', which fails the
-     * check_src_ext_version compatibility check. This self-healing method
-     * runs on every page load (via install_tabs) and fixes any '-' version
-     * to match hooks.php so activation succeeds.
-     */
-    private function fixInstalledVersion(): void
-    {
-        global $path_to_root;
-
-        $paths = [$path_to_root . '/installed_extensions.php'];
-        $companyDir = $path_to_root . '/company';
-        if (is_dir($companyDir)) {
-            foreach (scandir($companyDir) as $comp) {
-                if (is_numeric($comp)) {
-                    $paths[] = $companyDir . '/' . $comp . '/installed_extensions.php';
-                }
-            }
-        }
-
-        foreach ($paths as $file) {
-            if (!file_exists($file) || !is_writable($file)) {
-                continue;
-            }
-            $exts = [];
-            $next_extension_id = null;
-            include $file;
-            $changed = false;
-            foreach ($exts as $k => $ext) {
-                if (($ext['package'] ?? '') === 'ksf_FA_Mail'
-                    && ($ext['version'] ?? '') === '-'
-                ) {
-                    $exts[$k]['version'] = '2.4.0';
-                    $changed = true;
-                }
-            }
-            if ($changed) {
-                $content = "<?php\n\n\$installed_extensions = "
-                    . var_export($exts, true) . ";\n";
-                if (isset($next_extension_id)) {
-                    $content .= "\$next_extension_id = {$next_extension_id};\n";
-                }
-                file_put_contents($file, $content);
-            }
         }
     }
 
