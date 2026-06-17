@@ -63,36 +63,38 @@ class hooks_ksf_fa_mail extends hooks
     {
         global $path_to_root;
 
-        $files = [$path_to_root . '/installed_extensions.php'];
+        $paths = [$path_to_root . '/installed_extensions.php'];
         $companyDir = $path_to_root . '/company';
         if (is_dir($companyDir)) {
             foreach (scandir($companyDir) as $comp) {
                 if (is_numeric($comp)) {
-                    $files[] = $companyDir . '/' . $comp . '/installed_extensions.php';
+                    $paths[] = $companyDir . '/' . $comp . '/installed_extensions.php';
                 }
             }
         }
 
-        foreach ($files as $file) {
+        foreach ($paths as $file) {
             if (!file_exists($file) || !is_writable($file)) {
                 continue;
             }
-            $installed_extensions = [];
-            $next_extension_id = 1;
+            $exts = [];
+            $next_extension_id = null;
             include $file;
             $changed = false;
-            foreach ($installed_extensions as $k => $ext) {
+            foreach ($exts as $k => $ext) {
                 if (($ext['package'] ?? '') === 'ksf_FA_Mail'
                     && ($ext['version'] ?? '') === '-'
                 ) {
-                    $installed_extensions[$k]['version'] = '2.4.0';
+                    $exts[$k]['version'] = '2.4.0';
                     $changed = true;
                 }
             }
             if ($changed) {
                 $content = "<?php\n\n\$installed_extensions = "
-                    . var_export($installed_extensions, true) . ";\n"
-                    . "\$next_extension_id = {$next_extension_id};\n";
+                    . var_export($exts, true) . ";\n";
+                if (isset($next_extension_id)) {
+                    $content .= "\$next_extension_id = {$next_extension_id};\n";
+                }
                 file_put_contents($file, $content);
             }
         }
