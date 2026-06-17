@@ -19,7 +19,8 @@ page(_($help_context = 'Mail Setup'));
 $controller = new SetupController();
 $initCount = $controller->ensureDefaults();
 if ($initCount > 0) {
-    refresh_sys_prefs();
+    global $SysPrefs;
+    $SysPrefs->refresh();
 }
 
 if (isset($_POST['test_email'])) {
