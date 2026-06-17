@@ -56,9 +56,9 @@
         if (!file_exists($file) || !is_writable($file)) {
             continue;
         }
-        $exts = [];
         $next_extension_id = null;
         include $file;
+        $exts = $installed_extensions ?? [];
         $changed = false;
         foreach ($exts as $k => $ext) {
             if (($ext['package'] ?? '') !== 'ksf_FA_Mail') {
