@@ -21,7 +21,7 @@
 class hooks_ksf_fa_mail extends hooks
 {
     public $module_name = 'ksf_FA_Mail';
-    public $version = '2.0.0';
+    public $version = '2.4.0';
 
     public function install_options($app)
     {
