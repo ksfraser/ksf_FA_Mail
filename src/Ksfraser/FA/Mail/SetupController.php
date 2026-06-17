@@ -67,6 +67,40 @@ class SetupController
         return null;
     }
 
+    public function sendTestEmail(array $data): string
+    {
+        $error = $this->validate($data);
+        if ($error !== null) {
+            return $error;
+        }
+
+        $userEmail = $this->getCurrentUserEmail();
+        if ($userEmail === '') {
+            return _('Could not determine your user email address.');
+        }
+
+        $mailer = new MailerService($data);
+        $ok = $mailer->send(
+            $userEmail,
+            $userEmail,
+            _('Test email from ksf_FA_Mail'),
+            _('If you receive this, the SMTP configuration is working correctly.'),
+            $userEmail
+        );
+
+        return $ok
+            ? _('Test email sent successfully to') . ' ' . $userEmail
+            : _('Failed to send test email. Check the mail logs for details.');
+    }
+
+    private function getCurrentUserEmail(): string
+    {
+        if (isset($_SESSION['wa_current_user']->email)) {
+            return (string) $_SESSION['wa_current_user']->email;
+        }
+        return '';
+    }
+
     private function setPref(string $name, $value, string $type, int $size): void
     {
         if (!function_exists('set_company_pref')) {

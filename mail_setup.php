@@ -22,7 +22,14 @@ if ($initCount > 0) {
     refresh_sys_prefs();
 }
 
-if (isset($_POST['submit'])) {
+if (isset($_POST['test_email'])) {
+    $result = $controller->sendTestEmail($_POST);
+    if (str_starts_with($result, 'Test email sent')) {
+        display_notification($result);
+    } else {
+        display_error($result);
+    }
+} elseif (isset($_POST['submit'])) {
     $error = $controller->validate($_POST);
     if ($error !== null) {
         display_error($error);
@@ -85,6 +92,9 @@ end_table(1);
 div_end();
 
 submit_center('submit', _('Update'), true, '', 'default');
+
+echo '<br>';
+submit_center('test_email', _('Send Test Email'), false, '', 'default');
 
 end_form();
 
