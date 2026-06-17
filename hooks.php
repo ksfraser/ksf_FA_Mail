@@ -48,6 +48,54 @@ class hooks_ksf_fa_mail extends hooks
         if (!defined('SA_ksf_FA_MailPERSONAL')) {
             define('SA_ksf_FA_MailPERSONAL', true);
         }
+        $this->fixInstalledVersion();
+    }
+
+    /**
+     * Ensure installed_extensions.php has the correct version for this module.
+     *
+     * FA's local_extension() always writes version '-', which fails the
+     * check_src_ext_version compatibility check. This self-healing method
+     * runs on every page load (via install_tabs) and fixes any '-' version
+     * to match hooks.php so activation succeeds.
+     */
+    private function fixInstalledVersion(): void
+    {
+        global $path_to_root;
+
+        $files = [$path_to_root . '/installed_extensions.php'];
+        $companyDir = $path_to_root . '/company';
+        if (is_dir($companyDir)) {
+            foreach (scandir($companyDir) as $comp) {
+                if (is_numeric($comp)) {
+                    $files[] = $companyDir . '/' . $comp . '/installed_extensions.php';
+                }
+            }
+        }
+
+        foreach ($files as $file) {
+            if (!file_exists($file) || !is_writable($file)) {
+                continue;
+            }
+            $installed_extensions = [];
+            $next_extension_id = 1;
+            include $file;
+            $changed = false;
+            foreach ($installed_extensions as $k => $ext) {
+                if (($ext['package'] ?? '') === 'ksf_FA_Mail'
+                    && ($ext['version'] ?? '') === '-'
+                ) {
+                    $installed_extensions[$k]['version'] = '2.4.0';
+                    $changed = true;
+                }
+            }
+            if ($changed) {
+                $content = "<?php\n\n\$installed_extensions = "
+                    . var_export($installed_extensions, true) . ";\n"
+                    . "\$next_extension_id = {$next_extension_id};\n";
+                file_put_contents($file, $content);
+            }
+        }
     }
 
     public function hook_mail_send($to, $subject, $body, $headers)
