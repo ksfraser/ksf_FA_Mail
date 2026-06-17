@@ -1,0 +1,57 @@
+@startuml
+title ksf_FA_Mail — Send Email Flow
+
+participant Caller as "Caller Module"
+participant OutboundAccount as "OutboundAccountService"
+participant Hooks as "FA Hook System"
+participant Mailer as "MailerService"
+participant PHPMailer as "PHPMailer"
+participant Fallback as "FA send_email / PHP mail"
+
+== 1. Resolve Sender Account ==
+Caller -> OutboundAccount: resolveConfig($accountType, $userId)
+alt system_account
+    OutboundAccount --> Caller: [] (empty config → company prefs)
+else personal
+    OutboundAccount -> Hooks: ksf_preference_get(ksf_FA_Mail)
+    Hooks --> OutboundAccount: SMTP config array
+    OutboundAccount --> Caller: config array
+else hook-extended
+    OutboundAccount -> Hooks: hook_invoke_all(resolve_sender_config)
+    Hooks --> OutboundAccount: config from other module
+    OutboundAccount --> Caller: config array
+end
+
+== 2. Send Email ==
+Caller -> Mailer: send($to, $subject, $body, $config)
+alt config has SMTP host
+    Mailer -> PHPMailer: new \PHPMailer\PHPMailer\PHPMailer(true)
+    Mailer -> PHPMailer: set SMTP params from config
+    Mailer -> PHPMailer: send()
+    alt success
+        PHPMailer --> Mailer: true
+        Mailer --> Caller: true
+    else failure
+        PHPMailer --> Mailer: Exception
+        Mailer -> Mailer: sendViaFallback(...)
+    end
+else no SMTP config
+    Mailer -> Mailer: sendViaFallback(...)
+end
+
+== 3. Fallback Chain ==
+Mailer -> Mailer: sendViaFallback($to, $subject, $body, $from, $fromName)
+alt function_exists('send_email')
+    Mailer -> Fallback: send_email(...)
+else
+    Mailer -> Fallback: mail(...)
+end
+Fallback --> Mailer: bool
+Mailer --> Caller: bool
+
+== 4. Send iCal (FR-030) ==
+Caller -> Mailer: sendIcal($to, $subject, $body, $icalContent, $config)
+Mailer -> PHPMailer: addStringAttachment(ical, method=REQUEST)
+Mailer -> Mailer: send(...) via same SMTP/fallback flow
+
+@enduml
