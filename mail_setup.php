@@ -36,7 +36,7 @@ if (isset($_POST['test_settings'])) {
     $test_result = $controller->testSettings($_POST);
 }
 if (isset($_POST['send_test_email'])) {
-    $recipient = $_POST['send_test_recipient'] ?? '';
+    $recipient = $_POST['test_recipient'] ?? '';
     $test_result = $controller->sendTestEmailTo($_POST, $recipient);
 }
 
@@ -49,6 +49,12 @@ $_POST['smtp_secure']   = $_POST['smtp_secure']   ?? $prefs['smtp_secure'];
 $_POST['smtp_username'] = $_POST['smtp_username'] ?? $prefs['smtp_username'];
 $_POST['smtp_password'] = $_POST['smtp_password'] ?? $prefs['smtp_password'];
 $_POST['bcc_email']     = $_POST['bcc_email']     ?? $prefs['bcc_email'];
+
+$default_test_recipient = '';
+if (isset($_SESSION['wa_current_user']->email)) {
+    $default_test_recipient = (string) $_SESSION['wa_current_user']->email;
+}
+$_POST['test_recipient'] = $_POST['test_recipient'] ?? $default_test_recipient;
 
 $show_smtp = $_POST['mail_type'] !== 'MAIL';
 
@@ -98,11 +104,21 @@ echo '<br>';
 submit_center('test_settings', _('Test Settings'), true, '', 'default');
 
 echo '<br>';
-submit_center('send_test_email', _('Send Test Email'), true, '', 'default');
+echo '<div id="test_email_section">';
+start_table(TABLESTYLE2);
+text_row_ex(_('Test recipient:'), 'test_recipient', 50, 60, _('Email address to send the test message to'), $_POST['test_recipient']);
+end_table(1);
+echo '<br>';
+echo '<button class="inputsubmit" type="button" id="send_test_email_btn">'
+    . _('Send Test Email')
+    . '</button>';
+echo '</div>';
 
 if ($test_result !== '') {
-    if (str_contains($test_result, 'failed') || str_starts_with($test_result, 'SMTP test failed') || str_contains($test_result, 'Could not') || str_contains($test_result, 'not selected') || str_contains($test_result, 'please enter')) {
+    if (str_contains($test_result, 'failed') || str_starts_with($test_result, 'SMTP test failed') || str_contains($test_result, 'Could not') || str_contains($test_result, 'not selected')) {
         display_error($test_result);
+    } elseif (str_contains($test_result, 'Please enter') || str_contains($test_result, 'please enter') || str_contains($test_result, 'Valid email') || str_contains($test_result, 'valid email')) {
+        display_warning($test_result);
     } else {
         display_notification($test_result);
     }
@@ -134,24 +150,26 @@ echo <<<JS
         };
     };
 
-    var sendBtn = document.getElementsByName('send_test_email')[0];
+    var sendBtn = document.getElementById('send_test_email_btn');
     if (sendBtn) {
         sendBtn.onclick = function() {
-            var addr = window.prompt('Enter recipient email address for the test:');
-            if (!addr) return false;
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) {
-                alert('Please enter a valid email address.');
-                return false;
+            var addr = document.getElementsByName('test_recipient')[0];
+            if (!addr || !addr.value) {
+                alert('Please enter a recipient email address.');
+                return;
             }
-            if (!window.confirm('Send a test email to ' + addr + '? (CASL compliance: you must have consent to email this address.)')) {
-                return false;
+            if (!window.confirm('Send a test email to ' + addr.value + '? (CASL compliance: you must have consent to email this address.)')) {
+                return;
             }
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'send_test_recipient';
-            input.value = addr;
-            sendBtn.parentNode.appendChild(input);
-            return true;
+            var f = document.forms[0];
+            if (f) {
+                var h = document.createElement('input');
+                h.type = 'hidden';
+                h.name = 'send_test_email';
+                h.value = '1';
+                f.appendChild(h);
+                f.submit();
+            }
         };
     }
 })();
