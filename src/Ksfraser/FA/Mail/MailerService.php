@@ -80,6 +80,8 @@ class MailerService
         string $fromEmail,
         string $fromName = ''
     ): bool {
+        $body .= $this->buildCaslFooter();
+
         if ($this->mailer !== null) {
             return $this->sendViaPHPMailer($toEmail, $toName, $subject, $body, $fromEmail, $fromName);
         }
@@ -145,6 +147,8 @@ class MailerService
         string $icalContent,
         string $fromEmail
     ): bool {
+        $textBody .= $this->buildCaslFooter();
+
         $boundary = 'ksf_cal_' . md5(uniqid((string) mt_rand(), true));
         $to       = $toName !== '' ? '"' . addslashes($toName) . '" <' . $toEmail . '>' : $toEmail;
 
@@ -174,6 +178,44 @@ class MailerService
         }
 
         return mail($to, $subject, $body, $headers);
+    }
+
+    private function buildCaslFooter(): string
+    {
+        $parts = [];
+
+        $userName = $_SESSION['wa_current_user']->name ?? '';
+        if ($userName !== '') {
+            $parts[] = _('Sent by') . ' ' . $userName;
+        }
+
+        if (function_exists('get_company_pref')) {
+            $coyName = (string) get_company_pref('coy_name');
+            if ($coyName !== '') {
+                $parts[] = $coyName;
+            }
+
+            $address = (string) get_company_pref('postal_address');
+            if ($address !== '') {
+                $parts[] = str_replace(["\r\n", "\r"], "\n", $address);
+            }
+
+            $phone = (string) get_company_pref('phone');
+            if ($phone !== '') {
+                $parts[] = _('Phone:') . ' ' . $phone;
+            }
+
+            $email = (string) get_company_pref('email');
+            if ($email !== '') {
+                $parts[] = _('Email:') . ' ' . $email;
+            }
+        }
+
+        if (count($parts) === 0) {
+            return '';
+        }
+
+        return "\n\n-- \n" . implode("\n", $parts) . "\n";
     }
 
     /**
