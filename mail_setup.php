@@ -21,14 +21,7 @@ if ($initCount > 0) {
     $SysPrefs->refresh();
 }
 
-if (isset($_POST['test_email'])) {
-    $result = $controller->sendTestEmail($_POST);
-    if (str_starts_with($result, 'Test email sent')) {
-        display_notification($result);
-    } else {
-        display_error($result);
-    }
-} elseif (isset($_POST['submit'])) {
+if (isset($_POST['submit'])) {
     $error = $controller->validate($_POST);
     if ($error !== null) {
         display_error($error);
@@ -36,6 +29,11 @@ if (isset($_POST['test_email'])) {
         $controller->update($_POST);
         display_notification(_('The mail sending settings has been updated.'));
     }
+}
+
+$test_result = '';
+if (isset($_POST['test_email'])) {
+    $test_result = $controller->sendTestEmail($_POST);
 }
 
 $prefs = $controller->getPrefs();
@@ -66,25 +64,24 @@ echo '<hr>';
 
 div_start('details');
 
-if ($show_smtp) {
-    start_table(TABLESTYLE2);
-    text_row(_('SMTP Host:'),      'smtp_host',     $_POST['smtp_host'],     50, 52);
-    text_row(_('SMTP Port:'),      'smtp_port',     $_POST['smtp_port'],     10, 12);
+echo '<div id="smtp_fields"' . ($show_smtp ? '' : ' style="display:none"') . '>';
+start_table(TABLESTYLE2);
+text_row(_('SMTP Host:'),      'smtp_host',     $_POST['smtp_host'],     50, 52);
+text_row(_('SMTP Port:'),      'smtp_port',     $_POST['smtp_port'],     10, 12);
 
-    echo '<tr><td class="label">' . _('SMTP Secure:') . '</td><td>';
-    echo array_selector('smtp_secure', $_POST['smtp_secure'], [
-        'none' => _('None'),
-        'tls'  => _('TLS'),
-        'ssl'  => _('SSL'),
-    ]);
-    echo "</td></tr>\n";
+echo '<tr><td class="label">' . _('SMTP Secure:') . '</td><td>';
+echo array_selector('smtp_secure', $_POST['smtp_secure'], [
+    'none' => _('None'),
+    'tls'  => _('TLS'),
+    'ssl'  => _('SSL'),
+]);
+echo "</td></tr>\n";
 
-    text_row(_('Username:'),       'smtp_username', $_POST['smtp_username'], 60, 62);
-    text_row(_('Password:'),       'smtp_password', $_POST['smtp_password'], 60, 62);
-    end_table(1);
-}
+text_row(_('Username:'),       'smtp_username', $_POST['smtp_username'], 60, 62);
+text_row(_('Password:'),       'smtp_password', $_POST['smtp_password'], 60, 62);
+end_table(1);
+echo '</div>';
 
-// BCC is available regardless of mail type
 start_table(TABLESTYLE2);
 text_row_ex(_('BCC email:'), 'bcc_email', 50, 52, _('Blind carbon copy for all outgoing mail'), $_POST['bcc_email']);
 end_table(1);
@@ -94,8 +91,43 @@ div_end();
 submit_center('submit', _('Update'), true, '', 'default');
 
 echo '<br>';
-submit_center('test_email', _('Send Test Email'), false, '', 'default');
+submit_center('test_email', _('Test Settings'), true, '', 'default');
+
+if ($test_result !== '') {
+    if (str_starts_with($test_result, 'Test email sent')) {
+        display_notification($test_result);
+    } else {
+        display_error($test_result);
+    }
+}
 
 end_form();
+
+echo <<<JS
+<script type="text/javascript">
+(function() {
+    var sel = document.getElementsByName('mail_type')[0];
+    var div = document.getElementById('smtp_fields');
+    if (!sel || !div) return;
+
+    function toggle() {
+        div.style.display = sel.value === 'SMTP' ? '' : 'none';
+    }
+
+    toggle();
+
+    var old = window.onload || function(){};
+    window.onload = function() {
+        old();
+        var orig = sel.onchange;
+        sel.onchange = function() {
+            if (typeof orig === 'function') orig.call(this);
+            toggle();
+            return true;
+        };
+    };
+})();
+</script>
+JS;
 
 end_page();
