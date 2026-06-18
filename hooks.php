@@ -19,6 +19,11 @@
  * @package Ksfraser\FA\Mail
  */
 
+// Load Composer autoloader so namespaced classes are available in hook handlers.
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+
 // -----------------------------------------------------------------------
 // Self-healing — runs at file-inclusion time (session.inc loads hooks.php
 // for ALL root-file extensions regardless of active status).
@@ -143,6 +148,59 @@ class hooks_ksf_fa_mail extends hooks
         }
 
         return $service->send($email, $name, $subject, $body, $fromEmail);
+    }
+
+    /**
+     * Send an iCal calendar invitation via the configured mail service.
+     *
+     * Called by hook_invoke_first('mail_send_ical', $data) from the Calendar
+     * module.  Builds a multipart/mixed MIME message with text/plain body and
+     * text/calendar (iCal) attachment, adds CASL footer, BCCs all invitees,
+     * and sends via SMTP (PHPMailer) or fallback.
+     *
+     * @param array $data {
+     *   string to_email     TO recipient (organiser).
+     *   string to_name      TO recipient display name.
+     *   string subject      Email subject.
+     *   string text_body    Plain text body.
+     *   string ical_content iCal VCALENDAR content.
+     *   string from_email   Sender email.
+     *   array  bcc_emails   List of BCC recipient emails.
+     *   string account_type Account selector value (system/personal/…).
+     * }
+     * @return bool|null True on success, false on failure, null if SMTP not configured.
+     */
+    public function mail_send_ical($data)
+    {
+        if (!is_array($data)) {
+            return null;
+        }
+
+        $config = [];
+        $accountType = isset($data['account_type']) ? (string) $data['account_type'] : '';
+        if ($accountType !== '' && class_exists('\Ksfraser\FA\Mail\OutboundAccountService')) {
+            $userId = isset($_SESSION['wa_current_user']->user)
+                ? (string) $_SESSION['wa_current_user']->user
+                : '';
+            if ($userId !== '') {
+                $config = \Ksfraser\FA\Mail\OutboundAccountService::resolveConfig($userId, $accountType);
+            }
+        }
+
+        $service = new \Ksfraser\FA\Mail\MailerService($config);
+        if (!$service->isAvailable()) {
+            return null;
+        }
+
+        return $service->sendIcal(
+            isset($data['to_email'])     ? (string) $data['to_email']     : '',
+            isset($data['to_name'])      ? (string) $data['to_name']      : '',
+            isset($data['subject'])      ? (string) $data['subject']      : '',
+            isset($data['text_body'])    ? (string) $data['text_body']    : '',
+            isset($data['ical_content']) ? (string) $data['ical_content'] : '',
+            isset($data['from_email'])   ? (string) $data['from_email']   : '',
+            isset($data['bcc_emails'])   ? (array)  $data['bcc_emails']   : []
+        );
     }
 
     // -----------------------------------------------------------------------
