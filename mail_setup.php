@@ -48,6 +48,8 @@ $_POST['smtp_username'] = $_POST['smtp_username'] ?? $prefs['smtp_username'];
 $_POST['smtp_password'] = $_POST['smtp_password'] ?? $prefs['smtp_password'];
 $_POST['bcc_email']     = $_POST['bcc_email']     ?? $prefs['bcc_email'];
 
+$show_smtp = $_POST['mail_type'] !== 'MAIL';
+
 start_form();
 
 start_table(TABLESTYLE_NOBORDER);
@@ -64,7 +66,7 @@ echo '<hr>';
 
 div_start('details');
 
-if ($_POST['mail_type'] !== 'MAIL') {
+if ($show_smtp) {
     start_table(TABLESTYLE2);
     text_row(_('SMTP Host:'),      'smtp_host',     $_POST['smtp_host'],     50, 52);
     text_row(_('SMTP Port:'),      'smtp_port',     $_POST['smtp_port'],     10, 12);
