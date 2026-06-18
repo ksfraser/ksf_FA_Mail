@@ -110,20 +110,25 @@ class MailerService
             $this->mailer->Body = $body;
             $this->mailer->isHTML(false);
 
+            $bccCount = 0;
             foreach ($this->bccEmails as $bcc) {
                 $this->mailer->addBCC($bcc);
+                $bccCount++;
             }
 
             foreach ($extraBccEmails as $bcc) {
                 if ($bcc !== '') {
                     $this->mailer->addBCC($bcc);
+                    $bccCount++;
                 }
             }
 
+            error_log('[ksf_FA_Mail] sendViaPHPMailer: to=' . $toEmail . ', from=' . $fromEmail . ', bccTotal=' . $bccCount);
             $this->mailer->send();
+            error_log('[ksf_FA_Mail] sendViaPHPMailer: SUCCESS');
             return true;
         } catch (PHPMailerException $e) {
-            error_log('[ksf_FA_Mail] PHPMailer send failed: ' . $e->getMessage());
+            error_log('[ksf_FA_Mail] sendViaPHPMailer: FAILED: ' . $e->getMessage());
             return $this->sendViaFallback($toEmail, $toName, $subject, $body, $fromEmail);
         }
     }
@@ -155,6 +160,8 @@ class MailerService
         string $fromEmail,
         array $bccEmails = []
     ): bool {
+        error_log('[ksf_FA_Mail] sendIcal: to=' . $toEmail . ', from=' . $fromEmail . ', bcc=' . count($bccEmails) . ', mailer=' . ($this->mailer !== null ? 'SMTP' : 'none'));
+
         $textBody .= $this->buildCaslFooter();
 
         $boundary = 'ksf_cal_' . md5(uniqid((string) mt_rand(), true));
@@ -182,13 +189,17 @@ class MailerService
         $body .= '--' . $boundary . '--' . "\r\n";
 
         if ($this->mailer !== null) {
+            error_log('[ksf_FA_Mail] sendIcal: sending via PHPMailer (SMTP)');
             return $this->sendViaPHPMailer($toEmail, $toName, $subject, $body, $fromEmail, '', $bccEmails);
         }
 
+        error_log('[ksf_FA_Mail] sendIcal: no SMTP, using fallback');
         if (function_exists('send_email')) {
+            error_log('[ksf_FA_Mail] sendIcal: using send_email()');
             return send_email($to, $subject, $headers, $body);
         }
 
+        error_log('[ksf_FA_Mail] sendIcal: using PHP mail()');
         return mail($to, $subject, $body, $headers);
     }
 

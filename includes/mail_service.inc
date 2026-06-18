@@ -71,13 +71,18 @@ function ksf_mail_send_ical(
     array $bccEmails = [],
     string $accountType = ''
 ): bool {
+    error_log('[ksf_FA_Mail] ksf_mail_send_ical: to=' . $toEmail . ', from=' . $fromEmail . ', bcc=' . count($bccEmails) . ', acct=' . $accountType);
     $config = [];
     if ($accountType !== '' && class_exists('\Ksfraser\FA\Mail\OutboundAccountService')) {
         $userId = ksf_mail_current_user_id();
         $config = \Ksfraser\FA\Mail\OutboundAccountService::resolveConfig($userId, $accountType);
+        error_log('[ksf_FA_Mail] ksf_mail_send_ical: resolved config accountType=' . $accountType . ' mail_type=' . ($config['mail_type'] ?? 'empty'));
     }
     $service = new \Ksfraser\FA\Mail\MailerService($config);
-    return $service->sendIcal($toEmail, $toName, $subject, $textBody, $icalContent, $fromEmail, $bccEmails);
+    error_log('[ksf_FA_Mail] ksf_mail_send_ical: MailerService available=' . ($service->isAvailable() ? 'true' : 'false'));
+    $result = $service->sendIcal($toEmail, $toName, $subject, $textBody, $icalContent, $fromEmail, $bccEmails);
+    error_log('[ksf_FA_Mail] ksf_mail_send_ical: result=' . ($result ? 'true' : 'false'));
+    return $result;
 }
 
 /**
