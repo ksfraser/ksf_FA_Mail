@@ -35,7 +35,20 @@ $test_result = '';
 if (isset($_POST['test_settings'])) {
     $test_result = $controller->testSettings($_POST);
 }
-if (isset($_POST['send_test_email'])) {
+
+$pending_confirm = false;
+$pending_recipient = '';
+if (isset($_POST['send_test_email']) && !isset($_POST['confirm_send'])) {
+    $recipient = $_POST['test_recipient'] ?? '';
+    if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+        $test_result = _('Please enter a valid email address.');
+    } else {
+        $pending_confirm = true;
+        $pending_recipient = $recipient;
+    }
+}
+
+if (isset($_POST['confirm_send'])) {
     $recipient = $_POST['test_recipient'] ?? '';
     $test_result = $controller->sendTestEmailTo($_POST, $recipient);
 }
@@ -109,10 +122,23 @@ start_table(TABLESTYLE2);
 text_row_ex(_('Test recipient:'), 'test_recipient', 50, 60, _('Email address to send the test message to'), $_POST['test_recipient']);
 end_table(1);
 echo '<br>';
-echo '<button class="inputsubmit" type="button" id="send_test_email_btn">'
-    . _('Send Test Email')
-    . '</button>';
+submit_center('send_test_email', _('Send Test Email'), true, '', 'nonajax');
 echo '</div>';
+
+if ($pending_confirm) {
+    echo '<br>';
+    display_warning(
+        sprintf(
+            _('Send a test email to %s? You must have consent to email this address (CASL compliance).'),
+            $pending_recipient
+        )
+    );
+    echo '<center>';
+    submit_center('confirm_send', _('Confirm Send'), true, '', 'nonajax');
+    echo '&nbsp;';
+    submit_center('cancel_send', _('Cancel'), true, '', 'nonajax');
+    echo '</center>';
+}
 
 if ($test_result !== '') {
     if (str_contains($test_result, 'failed') || str_starts_with($test_result, 'SMTP test failed') || str_contains($test_result, 'Could not') || str_contains($test_result, 'not selected')) {
@@ -149,29 +175,6 @@ echo <<<JS
             return true;
         };
     };
-
-    var sendBtn = document.getElementById('send_test_email_btn');
-    if (sendBtn) {
-        sendBtn.onclick = function() {
-            var addr = document.getElementsByName('test_recipient')[0];
-            if (!addr || !addr.value) {
-                alert('Please enter a recipient email address.');
-                return;
-            }
-            if (!window.confirm('Send a test email to ' + addr.value + '? (CASL compliance: you must have consent to email this address.)')) {
-                return;
-            }
-            var f = document.forms[0];
-            if (f) {
-                var h = document.createElement('input');
-                h.type = 'hidden';
-                h.name = 'send_test_email';
-                h.value = '1';
-                f.appendChild(h);
-                f.submit();
-            }
-        };
-    }
 })();
 </script>
 JS;
