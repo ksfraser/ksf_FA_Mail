@@ -55,8 +55,7 @@ start_row();
 $_selector = array_selector(
     'mail_type',
     $_POST['mail_type'],
-    ['MAIL' => _("PHP's mail function"), 'SMTP' => _('SMTP server')],
-    ['select_submit' => true]
+    ['MAIL' => _("PHP's mail function"), 'SMTP' => _('SMTP server')]
 );
 label_cells(_('Mail type:'), $_selector);
 end_row();
@@ -85,7 +84,7 @@ if ($_POST['mail_type'] !== 'MAIL') {
 
 // BCC is available regardless of mail type
 start_table(TABLESTYLE2);
-text_row_ex(_('BCC email:'), 'bcc_email', $_POST['bcc_email'], 50, 52, null, _('Blind carbon copy for all outgoing mail'));
+text_row_ex(_('BCC email:'), 'bcc_email', 50, 52, _('Blind carbon copy for all outgoing mail'), $_POST['bcc_email']);
 end_table(1);
 
 div_end();
