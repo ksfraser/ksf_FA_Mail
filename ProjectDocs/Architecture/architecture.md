@@ -64,6 +64,36 @@ The sender dropdown (`OutboundAccountService::renderSelector()`) aggregates all 
 2. **FA's send_email()** — checks `function_exists('send_email')`
 3. **PHP mail()** — ultimate fallback
 
+### CASL Footer
+All outgoing emails get an appended footer with identification info:
+
+| Field | Priority 1 | Priority 2 | Priority 3 |
+|-------|-----------|-----------|-----------|
+| Sender name | FA users table (`real_name`) | — | — |
+| Email | FA users table (`email`) | Session email | Company prefs (`email`) |
+| Phone | FA users table (`phone`) | — | Company prefs (`phone`) |
+| Company name | Company prefs (`coy_name`) | — | — |
+| Address | Company prefs (`postal_address`) | — | — |
+
+Data sourced via `get_user_by_login()` (fresh from DB) to avoid stale session values. If the FA users DB function is unavailable, falls back to `$_SESSION['wa_current_user']->email`.
+
+### Test & Verification Buttons
+Two no-save test buttons on the admin setup page:
+
+1. **Test Settings** — instantiates PHPMailer, calls `smtpConnect()` + `smtpClose()`.
+   **No email is sent.** Returns success/failure of SMTP connection + authentication.
+
+2. **Send Test Email** — Two-step flow:
+   - Step 1: User enters recipient address, clicks "Send Test Email"
+   - Step 2: Server validates address, shows amber warning with CASL notice + Confirm/Cancel buttons
+   - Step 3: User clicks "Confirm Send" → email delivered
+   - The from address resolves as: `smtp_username` (if valid email) → current user email → recipient email
+
+Both buttons use `$async='nonajax'` to bypass FA's AJAX form handling.
+
+### Test recipient field
+A visible "Test recipient" text input below the action buttons, pre-filled with the current FA user's email (from session). This is the address used for the Send Test Email flow.
+
 ### Hook Contracts
 
 #### `get_available_senders`

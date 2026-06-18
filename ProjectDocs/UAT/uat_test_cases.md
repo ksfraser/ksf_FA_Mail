@@ -62,3 +62,44 @@
 3. Verify dropdown includes hook-injected accounts
 4. Select a hook-injected sender
 5. Verify email is sent via the resolved config
+
+## TC-013: SMTP Test Settings (auth only, no email)
+1. Configure SMTP with valid host, port, credentials
+2. Click "Test Settings" without clicking Update first
+3. Verify green notification: "SMTP settings verified — server connection and authentication succeeded."
+4. Verify no email was sent (check inbox)
+5. Change SMTP host to invalid, click "Test Settings"
+6. Verify red error message
+7. Switch Mail Type to "PHP's mail function"
+8. Click "Test Settings"
+9. Verify amber warning: "SMTP is not selected — no server to test."
+
+## TC-014: Send Test Email with CASL Confirm
+1. Configure valid SMTP
+2. Enter a test recipient email in the "Test recipient" field (pre-filled with current user's email)
+3. Click "Send Test Email"
+4. Verify amber warning appears with recipient address and CASL notice
+5. Click "Cancel" — verify no email sent
+6. Click "Send Test Email" again
+7. Click "Confirm Send" — verify green notification and email received
+8. Verify from address is the SMTP username (or current user email)
+9. Verify footer in received email contains sender name, company, address, phone, email
+10. Clear test recipient field, click "Send Test Email"
+11. Verify amber warning: "Please enter a valid email address."
+
+## TC-015: CASL Footer on Outgoing Emails
+1. Send any email via the module (test email, iCal invite, etc.)
+2. Open the received email
+3. Verify footer at bottom contains:
+   - "Sent by <user name>"
+   - Company name from company preferences
+   - Postal address from company preferences
+   - Phone number (user table or company prefs)
+   - Email address (user table or company prefs)
+4. Verify footer shows correct user data when user email/phone differ from company settings
+
+## TC-016: Mail Type DDL Toggle
+1. Switch Mail Type to "SMTP server"
+2. Verify SMTP fields (host, port, secure, username, password) appear instantly without page reload
+3. Switch Mail Type to "PHP's mail function"
+4. Verify SMTP fields hide instantly

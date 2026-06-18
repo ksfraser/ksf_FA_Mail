@@ -8,6 +8,8 @@ Supports three tiers of outbound accounts via a hook-based sender system:
 **System** (company prefs), **Personal** (per-user `fa_preference_values`),
 and **Extensible** (other modules inject senders via hooks).
 
+All outgoing emails include a CASL-compliant footer.
+
 ## Functional Requirements
 
 ### FR-001: System SMTP Configuration
@@ -67,3 +69,46 @@ The calendar's event modal shows the sender DDL when `OutboundAccountService`
 class is detected. Selected account is forwarded through
 `EventController::sendInvites()` → `cal_send_ical_invites()` →
 `cal_mail_with_ical()` → `ksf_mail_send_ical()`.
+
+### FR-031: SMTP Test Settings
+A "Test Settings" button on the admin setup page that connects to the SMTP
+server and authenticates (if credentials provided) but sends no email.
+Returns green notification on success, red error on failure.
+
+### FR-032: Send Test Email with CASL Confirm
+A "Send Test Email" button with a visible "Test recipient" text input field.
+Two-step server-side flow:
+1. User enters recipient, clicks "Send Test Email"
+2. Server validates address, shows amber warning with recipient and CASL notice,
+   plus Confirm Send and Cancel buttons
+3. User clicks "Confirm Send" → email is actually sent
+
+The from address resolves as: `smtp_username` (if valid email) → current FA
+user email → test recipient email (last resort).
+
+### FR-033: CASL Footer
+All outgoing emails (via `MailerService::send()` and `sendIcal()`) get a footer
+appended with:
+- Sender name from FA users table
+- Company name from company prefs
+- Company postal address from company prefs
+- Phone number from FA users table (fallback company prefs)
+- Email from FA users table (fallback company prefs)
+
+The footer is built by `MailerService::buildCaslFooter()`.
+
+### FR-034: Footer User Data Priority
+Footer email and phone are resolved from the FA users table first (via
+`get_user_by_login()` for fresh DB data), with fallback to session email and
+company prefs. Avoids stale session values from the FA default installation
+(`adm@example.com`).
+
+### FR-035: Display Levels for Test Results
+Test email flow differentiates result display:
+- Validation messages ("Please enter a valid email") → `display_warning()` (amber)
+- Operation failures ("Could not connect", "SMTP test failed") → `display_error()` (red)
+- Success → `display_notification()` (green)
+
+### FR-036: Test Recipient Default
+The test recipient field on the admin setup page is pre-filled with the current
+FA user's email from `$_SESSION['wa_current_user']->email` if available.

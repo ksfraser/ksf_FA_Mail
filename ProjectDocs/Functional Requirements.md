@@ -15,3 +15,9 @@
 | FR-021 | resolve_sender_config hook contract | Implemented |
 | FR-022 | mail_send legacy hook | Implemented |
 | FR-030 | Calendar iCal send integration with sender DDL | Implemented |
+| FR-031 | SMTP Test Settings (auth-only connection test, no email sent) | Implemented |
+| FR-032 | Send Test Email with visible recipient field and two-step server-side confirm (CASL) | Implemented |
+| FR-033 | CASL footer on all outgoing emails (sender name, company, address, phone, email) | Implemented |
+| FR-034 | Footer email/phone resolved from FA users table first, company prefs fallback | Implemented |
+| FR-035 | Warning (amber) display for validation messages, error (red) for failures, notification (green) for success | Implemented |
+| FR-036 | Test recipient field pre-filled with current user's email from session | Implemented |

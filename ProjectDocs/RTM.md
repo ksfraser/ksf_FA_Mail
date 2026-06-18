@@ -15,3 +15,9 @@
 | FR-021 | resolve_sender_config hook | `hooks.php`, `OutboundAccountService.php::resolveConfig()` | — | TC-012 |
 | FR-022 | mail_send hook | `hooks.php::hook_mail_send()` | — | — |
 | FR-030 | Calendar iCal integration | `cal_ical.php`, `EventController.php`, `AttendeesBlockView.php` | — | TC-006 |
+| FR-031 | SMTP Test Settings | `SetupController.php::testSettings()`, `mail_setup.php` | — | TC-013 |
+| FR-032 | Send Test Email with confirm | `SetupController.php::sendTestEmailTo()`, `mail_setup.php` | — | TC-014 |
+| FR-033 | CASL footer | `MailerService.php::buildCaslFooter()` | — | TC-015 |
+| FR-034 | Footer user data priority | `MailerService.php::getCurrentUserData()` | — | TC-015 |
+| FR-035 | Warning/error/notification display | `mail_setup.php` | — | TC-014 |
+| FR-036 | Test recipient default | `mail_setup.php` | — | TC-014 |

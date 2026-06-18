@@ -22,8 +22,9 @@ else hook-extended
     OutboundAccount --> Caller: config array
 end
 
-== 2. Send Email ==
+== 2. Send Email (CASL footer appended) ==
 Caller -> Mailer: send($to, $subject, $body, $config)
+Mailer -> Mailer: body .= buildCaslFooter()
 alt config has SMTP host
     Mailer -> PHPMailer: new \PHPMailer\PHPMailer\PHPMailer(true)
     Mailer -> PHPMailer: set SMTP params from config
@@ -40,7 +41,7 @@ else no SMTP config
 end
 
 == 3. Fallback Chain ==
-Mailer -> Mailer: sendViaFallback($to, $subject, $body, $from, $fromName)
+Mailer -> Mailer: sendViaFallback($to, $subject, $body, $from)
 alt function_exists('send_email')
     Mailer -> Fallback: send_email(...)
 else
@@ -49,9 +50,10 @@ end
 Fallback --> Mailer: bool
 Mailer --> Caller: bool
 
-== 4. Send iCal (FR-030) ==
-Caller -> Mailer: sendIcal($to, $subject, $body, $icalContent, $config)
-Mailer -> PHPMailer: addStringAttachment(ical, method=REQUEST)
+== 4. Send iCal (FR-030, with CASL footer) ==
+Caller -> Mailer: sendIcal($to, $subject, $textBody, $icalContent, $config)
+Mailer -> Mailer: textBody .= buildCaslFooter()
+Mailer -> PHPMailer: build MIME multipart with text/calendar attachment
 Mailer -> Mailer: send(...) via same SMTP/fallback flow
 
 @enduml

@@ -20,3 +20,14 @@ hook system, keeping the mail module agnostic.
 ## BR-004: iCal calendar invitation support
 The module must support sending multipart iMIP/iTip calendar invitations as
 part of the ksf_FA_Calendar event workflow, using the same sender selection.
+
+## BR-005: CASL-compliant sender identification
+All outgoing emails must include a footer identifying the sender (individual
+name, organisation name, mailing address, phone, email) — sourced from the FA
+users table and company preferences — to comply with Canadian Anti-Spam
+Legislation (CASL) requirements.
+
+## BR-006: Pre-flight verification without sending
+Administrators must be able to test SMTP authentication/connectivity without
+sending an email, and separately send a test email to a specific recipient
+with explicit confirmation (CASL consent) before delivery.
