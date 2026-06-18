@@ -130,7 +130,10 @@ class SetupController
             return _('Please enter a valid email address.');
         }
 
-        $fromEmail = $this->getCurrentUserEmail();
+        $fromEmail = $data['smtp_username'] ?? '';
+        if ($fromEmail === '' || !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
+            $fromEmail = $this->getCurrentUserEmail();
+        }
         if ($fromEmail === '') {
             $fromEmail = $recipientEmail;
         }
