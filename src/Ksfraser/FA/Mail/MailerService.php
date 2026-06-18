@@ -189,8 +189,7 @@ class MailerService
             $parts[] = _('Sent by') . ' ' . $userName;
         }
 
-        $userEmail = $_SESSION['wa_current_user']->email ?? '';
-        $userPhone = $this->getUserPhone();
+        $userData = $this->getCurrentUserData();
 
         if (function_exists('get_company_pref')) {
             $coyName = (string) get_company_pref('coy_name');
@@ -203,12 +202,16 @@ class MailerService
                 $parts[] = str_replace(["\r\n", "\r"], "\n", $address);
             }
 
-            $phone = $userPhone !== '' ? $userPhone : (string) get_company_pref('phone');
+            $phone = isset($userData['phone']) && $userData['phone'] !== ''
+                ? (string) $userData['phone']
+                : (string) get_company_pref('phone');
             if ($phone !== '') {
                 $parts[] = _('Phone:') . ' ' . $phone;
             }
 
-            $email = $userEmail !== '' ? $userEmail : (string) get_company_pref('email');
+            $email = isset($userData['email']) && $userData['email'] !== ''
+                ? (string) $userData['email']
+                : (string) get_company_pref('email');
             if ($email !== '') {
                 $parts[] = _('Email:') . ' ' . $email;
             }
@@ -221,17 +224,17 @@ class MailerService
         return "\n\n-- \n" . implode("\n", $parts) . "\n";
     }
 
-    private function getUserPhone(): string
+    private function getCurrentUserData(): array
     {
         $loginname = $_SESSION['wa_current_user']->loginname ?? '';
-        if ($loginname === '' || !function_exists('get_user_by_login')) {
-            return '';
+        if ($loginname !== '' && function_exists('get_user_by_login')) {
+            $userData = get_user_by_login($loginname);
+            if (is_array($userData)) {
+                return $userData;
+            }
         }
-        $userData = get_user_by_login($loginname);
-        if (is_array($userData) && isset($userData['phone'])) {
-            return (string) $userData['phone'];
-        }
-        return '';
+        $email = $_SESSION['wa_current_user']->email ?? '';
+        return $email !== '' ? ['email' => $email] : [];
     }
 
     /**

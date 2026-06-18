@@ -8,6 +8,13 @@
  * @package Ksfraser\FA\Mail
  */
 
+if (function_exists('get_company_pref') && !function_exists('get_user_by_login')) {
+    $__path = __DIR__ . '/../../../admin/db/users_db.inc';
+    if (file_exists($__path)) {
+        include_once $__path;
+    }
+}
+
 /**
  * Send an email using the configured mail service.
  *
