@@ -130,18 +130,34 @@ class SetupController
             return _('Please enter a valid email address.');
         }
 
+        $fromEmail = $this->getCurrentUserEmail();
+        if ($fromEmail === '') {
+            $fromEmail = $recipientEmail;
+        }
+
+        $fromName = $_SESSION['wa_current_user']->name ?? '';
+
         $mailer = new MailerService($data);
         $ok = $mailer->send(
             $recipientEmail,
             $recipientEmail,
             _('Test email from ksf_FA_Mail'),
             _('This is a test email requested from the Mail Setup page.'),
-            $recipientEmail
+            $fromEmail,
+            $fromName
         );
 
         return $ok
             ? _('Test email sent successfully to') . ' ' . $recipientEmail
             : _('Failed to send test email. Check the mail logs for details.');
+    }
+
+    private function getCurrentUserEmail(): string
+    {
+        if (isset($_SESSION['wa_current_user']->email)) {
+            return (string) $_SESSION['wa_current_user']->email;
+        }
+        return '';
     }
 
     private function setPref(string $name, $value, string $type, int $size): void
