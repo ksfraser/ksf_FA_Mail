@@ -32,8 +32,12 @@ if (isset($_POST['submit'])) {
 }
 
 $test_result = '';
-if (isset($_POST['test_email'])) {
-    $test_result = $controller->sendTestEmail($_POST);
+if (isset($_POST['test_settings'])) {
+    $test_result = $controller->testSettings($_POST);
+}
+if (isset($_POST['send_test_email'])) {
+    $recipient = $_POST['send_test_recipient'] ?? '';
+    $test_result = $controller->sendTestEmailTo($_POST, $recipient);
 }
 
 $prefs = $controller->getPrefs();
@@ -91,13 +95,16 @@ div_end();
 submit_center('submit', _('Update'), true, '', 'default');
 
 echo '<br>';
-submit_center('test_email', _('Test Settings'), true, '', 'default');
+submit_center('test_settings', _('Test Settings'), true, '', 'default');
+
+echo '<br>';
+submit_center('send_test_email', _('Send Test Email'), true, '', 'default');
 
 if ($test_result !== '') {
-    if (str_starts_with($test_result, 'Test email sent')) {
-        display_notification($test_result);
-    } else {
+    if (str_contains($test_result, 'failed') || str_starts_with($test_result, 'SMTP test failed') || str_contains($test_result, 'Could not') || str_contains($test_result, 'not selected') || str_contains($test_result, 'please enter')) {
         display_error($test_result);
+    } else {
+        display_notification($test_result);
     }
 }
 
@@ -126,6 +133,27 @@ echo <<<JS
             return true;
         };
     };
+
+    var sendBtn = document.getElementsByName('send_test_email')[0];
+    if (sendBtn) {
+        sendBtn.onclick = function() {
+            var addr = window.prompt('Enter recipient email address for the test:');
+            if (!addr) return false;
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr)) {
+                alert('Please enter a valid email address.');
+                return false;
+            }
+            if (!window.confirm('Send a test email to ' + addr + '? (CASL compliance: you must have consent to email this address.)')) {
+                return false;
+            }
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'send_test_recipient';
+            input.value = addr;
+            sendBtn.parentNode.appendChild(input);
+            return true;
+        };
+    }
 })();
 </script>
 JS;
