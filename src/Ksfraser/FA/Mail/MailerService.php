@@ -189,6 +189,9 @@ class MailerService
             $parts[] = _('Sent by') . ' ' . $userName;
         }
 
+        $userEmail = $_SESSION['wa_current_user']->email ?? '';
+        $userPhone = $this->getUserPhone();
+
         if (function_exists('get_company_pref')) {
             $coyName = (string) get_company_pref('coy_name');
             if ($coyName !== '') {
@@ -200,12 +203,12 @@ class MailerService
                 $parts[] = str_replace(["\r\n", "\r"], "\n", $address);
             }
 
-            $phone = (string) get_company_pref('phone');
+            $phone = $userPhone !== '' ? $userPhone : (string) get_company_pref('phone');
             if ($phone !== '') {
                 $parts[] = _('Phone:') . ' ' . $phone;
             }
 
-            $email = (string) get_company_pref('email');
+            $email = $userEmail !== '' ? $userEmail : (string) get_company_pref('email');
             if ($email !== '') {
                 $parts[] = _('Email:') . ' ' . $email;
             }
@@ -216,6 +219,19 @@ class MailerService
         }
 
         return "\n\n-- \n" . implode("\n", $parts) . "\n";
+    }
+
+    private function getUserPhone(): string
+    {
+        $loginname = $_SESSION['wa_current_user']->loginname ?? '';
+        if ($loginname === '' || !function_exists('get_user_by_login')) {
+            return '';
+        }
+        $userData = get_user_by_login($loginname);
+        if (is_array($userData) && isset($userData['phone'])) {
+            return (string) $userData['phone'];
+        }
+        return '';
     }
 
     /**
