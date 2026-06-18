@@ -7,8 +7,6 @@ $path_to_root = '../..';
 
 include($path_to_root . '/includes/session.inc');
 include($path_to_root . '/includes/ui.inc');
-include($path_to_root . '/includes/data_checks.inc');
-include($path_to_root . '/admin/db/company_db.inc');
 
 require_once __DIR__ . '/vendor/autoload.php';
 
