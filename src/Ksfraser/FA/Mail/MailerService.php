@@ -95,7 +95,8 @@ class MailerService
         string $subject,
         string $body,
         string $fromEmail,
-        string $fromName
+        string $fromName,
+        array $extraBccEmails = []
     ): bool {
         try {
             $this->mailer->clearAddresses();
@@ -111,6 +112,12 @@ class MailerService
 
             foreach ($this->bccEmails as $bcc) {
                 $this->mailer->addBCC($bcc);
+            }
+
+            foreach ($extraBccEmails as $bcc) {
+                if ($bcc !== '') {
+                    $this->mailer->addBCC($bcc);
+                }
             }
 
             $this->mailer->send();
@@ -145,7 +152,8 @@ class MailerService
         string $subject,
         string $textBody,
         string $icalContent,
-        string $fromEmail
+        string $fromEmail,
+        array $bccEmails = []
     ): bool {
         $textBody .= $this->buildCaslFooter();
 
@@ -155,6 +163,10 @@ class MailerService
         $headers  = 'From: ' . $fromEmail . "\r\n";
         $headers .= 'MIME-Version: 1.0' . "\r\n";
         $headers .= 'Content-Type: multipart/mixed; boundary="' . $boundary . '"' . "\r\n";
+
+        if (!empty($bccEmails)) {
+            $headers .= 'Bcc: ' . implode(', ', $bccEmails) . "\r\n";
+        }
 
         $body  = '--' . $boundary . "\r\n";
         $body .= 'Content-Type: text/plain; charset=UTF-8' . "\r\n";
@@ -170,7 +182,7 @@ class MailerService
         $body .= '--' . $boundary . '--' . "\r\n";
 
         if ($this->mailer !== null) {
-            return $this->sendViaPHPMailer($toEmail, $toName, $subject, $body, $fromEmail, '');
+            return $this->sendViaPHPMailer($toEmail, $toName, $subject, $body, $fromEmail, '', $bccEmails);
         }
 
         if (function_exists('send_email')) {

@@ -51,12 +51,13 @@ function ksf_mail_send(
 /**
  * Send an iCal calendar invitation email.
  *
- * @param string $toEmail      Recipient email.
- * @param string $toName       Recipient name.
+ * @param string $toEmail      TO recipient (usually the organiser).
+ * @param string $toName       TO recipient display name.
  * @param string $subject      Email subject.
  * @param string $textBody     Plain text body.
  * @param string $icalContent  iCal VCALENDAR content.
  * @param string $fromEmail    Sender email.
+ * @param array  $bccEmails    List of BCC recipient email addresses.
  * @param string $accountType  Account selector value (system/personal/team:N).
  * @return bool True if accepted for delivery.
  */
@@ -67,6 +68,7 @@ function ksf_mail_send_ical(
     string $textBody,
     string $icalContent,
     string $fromEmail,
+    array $bccEmails = [],
     string $accountType = ''
 ): bool {
     $config = [];
@@ -75,7 +77,7 @@ function ksf_mail_send_ical(
         $config = \Ksfraser\FA\Mail\OutboundAccountService::resolveConfig($userId, $accountType);
     }
     $service = new \Ksfraser\FA\Mail\MailerService($config);
-    return $service->sendIcal($toEmail, $toName, $subject, $textBody, $icalContent, $fromEmail);
+    return $service->sendIcal($toEmail, $toName, $subject, $textBody, $icalContent, $fromEmail, $bccEmails);
 }
 
 /**
