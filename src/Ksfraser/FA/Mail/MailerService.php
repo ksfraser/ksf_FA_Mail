@@ -96,7 +96,8 @@ class MailerService
         string $body,
         string $fromEmail,
         string $fromName,
-        array $extraBccEmails = []
+        array $extraBccEmails = [],
+        string $replyToEmail = ''
     ): bool {
         try {
             $this->mailer->clearAddresses();
@@ -106,6 +107,9 @@ class MailerService
 
             $this->mailer->setFrom($fromEmail, $fromName ?: $toName);
             $this->mailer->addAddress($toEmail, $toName);
+            if ($replyToEmail !== '') {
+                $this->mailer->addReplyTo($replyToEmail);
+            }
             $this->mailer->Subject = $subject;
             $this->mailer->Body = $body;
             $this->mailer->isHTML(false);
@@ -123,13 +127,13 @@ class MailerService
                 }
             }
 
-            $this->log('sendViaPHPMailer: to=' . $toEmail . ', from=' . $fromEmail . ', bccTotal=' . $bccCount);
+            $this->log('sendViaPHPMailer: to=' . $toEmail . ', from=' . $fromEmail . ', replyTo=' . $replyToEmail . ', bccTotal=' . $bccCount);
             $this->mailer->send();
             $this->log('sendViaPHPMailer: SUCCESS');
             return true;
         } catch (PHPMailerException $e) {
             $this->log('sendViaPHPMailer: FAILED: ' . $e->getMessage());
-            return $this->sendViaFallback($toEmail, $toName, $subject, $body, $fromEmail);
+            return $this->sendViaFallback($toEmail, $toName, $subject, $body, $fromEmail, $replyToEmail);
         }
     }
 
@@ -138,11 +142,15 @@ class MailerService
         string $toName,
         string $subject,
         string $body,
-        string $fromEmail
+        string $fromEmail,
+        string $replyToEmail = ''
     ): bool {
         $to = $toName !== '' ? '"' . addslashes($toName) . '" <' . $toEmail . '>' : $toEmail;
 
         $headers = 'From: ' . $fromEmail . "\r\n";
+        if ($replyToEmail !== '') {
+            $headers .= 'Reply-To: ' . $replyToEmail . "\r\n";
+        }
 
         if (function_exists('send_email')) {
             return send_email($to, $subject, $headers, $body);
@@ -151,6 +159,7 @@ class MailerService
         return mail($to, $subject, $body, $headers);
     }
 
+
     public function sendIcal(
         string $toEmail,
         string $toName,
@@ -158,9 +167,10 @@ class MailerService
         string $textBody,
         string $icalContent,
         string $fromEmail,
-        array $bccEmails = []
+        array $bccEmails = [],
+        string $replyToEmail = ''
     ): bool {
-        $this->log('sendIcal: to=' . $toEmail . ', from=' . $fromEmail . ', bcc=' . count($bccEmails) . ', mailer=' . ($this->mailer !== null ? 'SMTP' : 'none'));
+        $this->log('sendIcal: to=' . $toEmail . ', from=' . $fromEmail . ', replyTo=' . $replyToEmail . ', bcc=' . count($bccEmails) . ', mailer=' . ($this->mailer !== null ? 'SMTP' : 'none'));
 
         $textBody .= $this->buildCaslFooter();
 
@@ -168,6 +178,9 @@ class MailerService
         $to       = $toName !== '' ? '"' . addslashes($toName) . '" <' . $toEmail . '>' : $toEmail;
 
         $headers  = 'From: ' . $fromEmail . "\r\n";
+        if ($replyToEmail !== '') {
+            $headers .= 'Reply-To: ' . $replyToEmail . "\r\n";
+        }
         $headers .= 'MIME-Version: 1.0' . "\r\n";
         $headers .= 'Content-Type: multipart/mixed; boundary="' . $boundary . '"' . "\r\n";
 
@@ -190,7 +203,7 @@ class MailerService
 
         if ($this->mailer !== null) {
             $this->log('sendIcal: sending via PHPMailer (SMTP)');
-            return $this->sendViaPHPMailer($toEmail, $toName, $subject, $body, $fromEmail, '', $bccEmails);
+            return $this->sendViaPHPMailer($toEmail, $toName, $subject, $body, $fromEmail, '', $bccEmails, $replyToEmail);
         }
 
         $this->log('sendIcal: no SMTP, using fallback');

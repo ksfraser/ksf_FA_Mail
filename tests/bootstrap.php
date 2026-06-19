@@ -67,18 +67,97 @@ if (!class_exists('hooks')) {
 }
 
 /**
- * In-memory stub for the fa_preference_values table used in tests.
- * @var array<string, array<string, array<string, string>>>
+ * In-memory stubs for test tables.
+ * @var array<string, array<string, array<string, array<string, string>>>>  [_test_prefs][module][user][key]=value
+ * @var array<string, array>  [_test_accounts][ownerType][ownerId]=row
  */
 $GLOBALS['_test_prefs'] = [];
+$GLOBALS['_test_accounts'] = [];
 
 /**
- * Stub for db_query() — supports SELECT/INSERT with our prefs table.
+ * Return the ksf_mail_accounts table name (with optional prefix).
+ */
+if (!function_exists('_test_accounts_table')) {
+    function _test_accounts_table(): string
+    {
+        return (defined('TB_PREF') ? constant('TB_PREF') : '') . 'ksf_mail_accounts';
+    }
+}
+
+/**
+ * Parse a table name from SQL, stripping backticks and any TB_PREF prefix.
+ */
+if (!function_exists('_test_parse_table')) {
+    function _test_parse_table(string $sql): ?string
+    {
+        if (preg_match('/`?([a-z_]+)`?\s/', $sql, $m)) {
+            $name = $m[1];
+            $pref = defined('TB_PREF') ? constant('TB_PREF') : '';
+            if ($pref !== '' && str_starts_with($name, $pref)) {
+                $name = substr($name, strlen($pref));
+            }
+            return $name;
+        }
+        return null;
+    }
+}
+
+/**
+ * Stub for db_query() — handles fa_preference_values AND ksf_mail_accounts.
  */
 if (!function_exists('db_query')) {
     function db_query(string $sql, string $msg = '')
     {
-        // Simple SELECT parsing for preference_values table
+        // ---- ksf_mail_accounts SELECT ----
+        if (preg_match("/^SELECT \* FROM .*ksf_mail_accounts.* WHERE owner_type='([^']+)' AND owner_id='([^']+)'/", $sql, $m)) {
+            $ownerType = $m[1];
+            $ownerId = $m[2];
+            if (isset($GLOBALS['_test_accounts'][$ownerType][$ownerId])) {
+                return [$GLOBALS['_test_accounts'][$ownerType][$ownerId]];
+            }
+            return [];
+        }
+
+        // ---- ksf_mail_accounts INSERT ... ON DUPLICATE KEY UPDATE ----
+        if (preg_match("/^INSERT INTO .*ksf_mail_accounts.* ON DUPLICATE KEY UPDATE/", $sql)) {
+            // Extract owner_type and owner_id
+            preg_match("/VALUES\s*\('([^']+)',\s*'([^']+)'/s", $sql, $m);
+            if (!empty($m[1])) {
+                $ownerType = $m[1];
+                $ownerId = $m[2];
+                // Extract column=value pairs from ON DUPLICATE KEY UPDATE
+                preg_match("/ON DUPLICATE KEY UPDATE\s+(.+)$/s", $sql, $upd);
+                $row = [
+                    'id' => 42,
+                    'owner_type' => $ownerType,
+                    'owner_id' => $ownerId,
+                    'is_default' => '0',
+                    'local_part' => '', 'domain' => '', 'from_name' => '',
+                    'smtp_host' => '', 'smtp_port' => '25', 'smtp_secure' => 'none',
+                    'smtp_username' => '', 'smtp_password' => '',
+                    'imap_host' => '', 'imap_port' => '993', 'imap_secure' => 'ssl',
+                    'imap_username' => '', 'imap_password' => '',
+                    'bcc_email' => '',
+                ];
+                if (!empty($upd[1])) {
+                    foreach (explode(',', $upd[1]) as $pair) {
+                        if (preg_match("/`?(\w+)`?\s*=\s*'([^']*)'/", trim($pair), $p)) {
+                            $row[$p[1]] = $p[2];
+                        }
+                    }
+                }
+                $GLOBALS['_test_accounts'][$ownerType][$ownerId] = $row;
+            }
+            return true;
+        }
+
+        // ---- ksf_mail_accounts DELETE ----
+        if (preg_match("/^DELETE FROM .*ksf_mail_accounts.* WHERE owner_type='([^']+)' AND owner_id='([^']+)'/", $sql, $m)) {
+            unset($GLOBALS['_test_accounts'][$m[1]][$m[2]]);
+            return true;
+        }
+
+        // ---- Legacy fa_preference_values SELECT ----
         if (preg_match("/^SELECT pref_value FROM .*fa_preference_values.* WHERE module_name='([^']+)' AND user_id='([^']+)' AND pref_key='([^']+)'/", $sql, $m)) {
             $module = $m[1];
             $uid = $m[2];
@@ -88,12 +167,14 @@ if (!function_exists('db_query')) {
             }
             return [];
         }
-        // Simple INSERT parsing
+
+        // ---- Legacy fa_preference_values INSERT ----
         if (preg_match("/^INSERT INTO .*fa_preference_values.* VALUES\s*\('([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']*?)'\)/s", $sql, $m)) {
             $GLOBALS['_test_prefs'][$m[1]][$m[2]][$m[3]] = $m[4];
             return true;
         }
-        // INSERT ... ON DUPLICATE KEY UPDATE
+
+        // ---- Legacy fa_preference_values INSERT ... ON DUPLICATE KEY UPDATE ----
         if (preg_match("/^INSERT INTO .*fa_preference_values.* ON DUPLICATE KEY UPDATE/", $sql)) {
             preg_match("/VALUES\s*\('([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']*?)'/s", $sql, $m);
             if (!empty($m[1])) {
@@ -101,6 +182,7 @@ if (!function_exists('db_query')) {
             }
             return true;
         }
+
         return true;
     }
 }

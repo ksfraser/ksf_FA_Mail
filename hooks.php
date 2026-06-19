@@ -89,6 +89,8 @@ if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     }
 })();
 
+define('SS_ksf_FA_Mail', 126 << 8);
+
 class hooks_ksf_fa_mail extends hooks
 {
     public $module_name = 'ksf_FA_Mail';
@@ -111,14 +113,36 @@ class hooks_ksf_fa_mail extends hooks
         }
     }
 
-    public function install_tabs($module = null)
+    public function install_tabs($app)
     {
-        if (!defined('FA_LOGGED_IN') || !FA_LOGGED_IN) {
-            return;
-        }
+        $app->add_application(new email_app());
         if (!defined('SA_ksf_FA_MailPERSONAL')) {
             define('SA_ksf_FA_MailPERSONAL', true);
         }
+    }
+
+    public function install_access()
+    {
+        $security_sections[SS_ksf_FA_Mail] = _('E-Mail');
+
+        $security_areas['SA_ksf_FA_MailCONFIG'] = [
+            SS_ksf_FA_Mail | 1,
+            _('Configure Mail Account'),
+        ];
+
+        return [$security_areas, $security_sections];
+    }
+
+    public function activate_extension($company, $check_only = true)
+    {
+        if (!file_exists(__DIR__ . '/sql/mail_accounts.sql')) {
+            return true;
+        }
+
+        $updates = [
+            'mail_accounts.sql' => ['ksf_mail_accounts'],
+        ];
+        return $this->update_databases($company, $updates, $check_only);
     }
 
     public function hook_mail_send($to, $subject, $body, $headers)
@@ -164,7 +188,7 @@ class hooks_ksf_fa_mail extends hooks
      *   string subject      Email subject.
      *   string text_body    Plain text body.
      *   string ical_content iCal VCALENDAR content.
-     *   string from_email   Sender email.
+     *   string from_email   Sender email (Calendar inviter).
      *   array  bcc_emails   List of BCC recipient emails.
      *   string account_type Account selector value (system/personal/…).
      * }
@@ -176,14 +200,35 @@ class hooks_ksf_fa_mail extends hooks
             return null;
         }
 
+        $inviterEmail = isset($data['from_email']) ? (string) $data['from_email'] : '';
+        $accountType  = isset($data['account_type']) ? (string) $data['account_type'] : '';
+        $userId       = isset($_SESSION['wa_current_user']->user)
+            ? (string) $_SESSION['wa_current_user']->user
+            : '';
+
         $config = [];
-        $accountType = isset($data['account_type']) ? (string) $data['account_type'] : '';
         if ($accountType !== '' && class_exists('\Ksfraser\FA\Mail\OutboundAccountService')) {
-            $userId = isset($_SESSION['wa_current_user']->user)
-                ? (string) $_SESSION['wa_current_user']->user
-                : '';
             if ($userId !== '') {
                 $config = \Ksfraser\FA\Mail\OutboundAccountService::resolveConfig($userId, $accountType);
+            }
+        }
+
+        // Determine effective FROM and optional Reply-To.
+        $fromEmail    = $inviterEmail;
+        $replyToEmail = '';
+
+        if ($accountType === \Ksfraser\FA\Mail\OutboundAccountService::TYPE_SYSTEM || $accountType === '') {
+            $replyToEmail = $inviterEmail;
+            $systemEmail  = self::getSystemFromEmail($config);
+            if ($systemEmail !== '') {
+                $fromEmail = $systemEmail;
+            }
+        } else {
+            // Personal or third-party account: prefer the account's own from_email
+            // (the SMTP-authenticated identity).  Fall back to the inviter email.
+            $accountFrom = $config['from_email'] ?? '';
+            if ($accountFrom !== '') {
+                $fromEmail = $accountFrom;
             }
         }
 
@@ -198,13 +243,72 @@ class hooks_ksf_fa_mail extends hooks
             isset($data['subject'])      ? (string) $data['subject']      : '',
             isset($data['text_body'])    ? (string) $data['text_body']    : '',
             isset($data['ical_content']) ? (string) $data['ical_content'] : '',
-            isset($data['from_email'])   ? (string) $data['from_email']   : '',
-            isset($data['bcc_emails'])   ? (array)  $data['bcc_emails']   : []
+            $fromEmail,
+            isset($data['bcc_emails'])   ? (array)  $data['bcc_emails']   : [],
+            $replyToEmail
         );
     }
 
+    /**
+     * Derive the system FROM email from SMTP config or company prefs.
+     */
+    private static function getSystemFromEmail(array $config): string
+    {
+        $smtpUser = $config['smtp_username'] ?? '';
+        if ($smtpUser !== '' && filter_var($smtpUser, FILTER_VALIDATE_EMAIL)) {
+            return $smtpUser;
+        }
+        if (function_exists('get_company_pref')) {
+            $coEmail = (string) get_company_pref('email');
+            if ($coEmail !== '') {
+                return $coEmail;
+            }
+        }
+        return '';
+    }
+
     // -----------------------------------------------------------------------
-    // Preference hooks – store personal mail prefs in fa_preference_values
+    // Account hooks — allow other modules to manage accounts for their owners
+    // -----------------------------------------------------------------------
+
+    /**
+     * Retrieve a mail account for a given owner.
+     *
+     * Hook contract for other modules:
+     *   ksf_mail_account_get(&$result, $ownerType, $ownerId)
+     *     — Set $result to account array if you manage this owner type.
+     *
+     * This module handles owner_type='user'.  Other modules (HRM, CRM, …)
+     * respond with their own owner types.
+     */
+    public function ksf_mail_account_get(&$result, $ownerType, $ownerId)
+    {
+        if ($ownerType === 'user' && class_exists('\Ksfraser\FA\Mail\OutboundAccountService')) {
+            $result = \Ksfraser\FA\Mail\OutboundAccountService::getAccount('user', $ownerId);
+            return true;
+        }
+        return null;
+    }
+
+    /**
+     * Save a mail account for a given owner.
+     *
+     * Hook contract for other modules:
+     *   ksf_mail_account_save(&$saved, $ownerType, $ownerId, $data)
+     *     — Set $saved=true if you handled this owner type.
+     */
+    public function ksf_mail_account_save(&$saved, $ownerType, $ownerId, $data)
+    {
+        if ($ownerType === 'user' && class_exists('\Ksfraser\FA\Mail\OutboundAccountService')) {
+            \Ksfraser\FA\Mail\OutboundAccountService::saveAccount('user', $ownerId, $data);
+            $saved = true;
+            return true;
+        }
+        return null;
+    }
+
+    // -----------------------------------------------------------------------
+    // Preference hooks – legacy fa_preference_values (backward compat)
     // -----------------------------------------------------------------------
 
     public function ksf_preference_get(&$payload, $opts = array())
@@ -289,5 +393,27 @@ class hooks_ksf_fa_mail extends hooks
             . "'" . $this->esc(json_encode($prefValue)) . "')"
             . " ON DUPLICATE KEY UPDATE pref_value=VALUES(pref_value)";
         db_query($sql);
+    }
+}
+
+// =========================================================================
+// E-Mail Application definition
+// =========================================================================
+
+class email_app extends application
+{
+    public function __construct()
+    {
+        parent::__construct('Email', _($this->help_context = '&E-Mail'));
+
+        $this->add_module(_('E-Mail'));
+
+        $this->add_lapp_function(
+            0,
+            _('My Mail Account'),
+            'modules/ksf_FA_Mail/my_mail_account.php?',
+            'SA_ksf_FA_MailCONFIG',
+            MENU_SETTINGS
+        );
     }
 }
