@@ -89,7 +89,7 @@ if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     }
 })();
 
-define('SS_ksf_FA_Mail', 126 << 8);
+define('SS_MAIL', 144 << 8);
 
 class hooks_ksf_fa_mail extends hooks
 {
@@ -115,7 +115,9 @@ class hooks_ksf_fa_mail extends hooks
 
     public function install_tabs($app)
     {
+        set_ext_domain('modules/' . $this->module_name);
         $app->add_application(new email_app());
+        set_ext_domain();
         if (!defined('SA_ksf_FA_MailPERSONAL')) {
             define('SA_ksf_FA_MailPERSONAL', true);
         }
@@ -123,11 +125,16 @@ class hooks_ksf_fa_mail extends hooks
 
     public function install_access()
     {
-        $security_sections[SS_ksf_FA_Mail] = _('E-Mail');
+        $security_sections[SS_MAIL] = _('E-Mail');
 
-        $security_areas['SA_ksf_FA_MailCONFIG'] = [
-            SS_ksf_FA_Mail | 1,
-            _('Configure Mail Account'),
+        $security_areas['SA_MAIL_PERSONAL'] = [
+            SS_MAIL | 1,
+            _('Configure Personal Mail Account'),
+        ];
+
+        $security_areas['SA_MAIL_MANAGE'] = [
+            SS_MAIL | 2,
+            _('Manage Mail Accounts'),
         ];
 
         return [$security_areas, $security_sections];
@@ -412,7 +419,7 @@ class email_app extends application
             0,
             _('My Mail Account'),
             'modules/ksf_FA_Mail/my_mail_account.php?',
-            'SA_ksf_FA_MailCONFIG',
+            'SA_MAIL_PERSONAL',
             MENU_SETTINGS
         );
     }
