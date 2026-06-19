@@ -62,7 +62,7 @@ class MailerService
 
             $this->mailer->SMTPDebug = 0;
         } catch (PHPMailerException $e) {
-            error_log('[ksf_FA_Mail] PHPMailer init failed: ' . $e->getMessage());
+            $this->log('PHPMailer init failed: ' . $e->getMessage());
             $this->mailer = null;
         }
     }
@@ -123,12 +123,12 @@ class MailerService
                 }
             }
 
-            error_log('[ksf_FA_Mail] sendViaPHPMailer: to=' . $toEmail . ', from=' . $fromEmail . ', bccTotal=' . $bccCount);
+            $this->log('sendViaPHPMailer: to=' . $toEmail . ', from=' . $fromEmail . ', bccTotal=' . $bccCount);
             $this->mailer->send();
-            error_log('[ksf_FA_Mail] sendViaPHPMailer: SUCCESS');
+            $this->log('sendViaPHPMailer: SUCCESS');
             return true;
         } catch (PHPMailerException $e) {
-            error_log('[ksf_FA_Mail] sendViaPHPMailer: FAILED: ' . $e->getMessage());
+            $this->log('sendViaPHPMailer: FAILED: ' . $e->getMessage());
             return $this->sendViaFallback($toEmail, $toName, $subject, $body, $fromEmail);
         }
     }
@@ -160,7 +160,7 @@ class MailerService
         string $fromEmail,
         array $bccEmails = []
     ): bool {
-        error_log('[ksf_FA_Mail] sendIcal: to=' . $toEmail . ', from=' . $fromEmail . ', bcc=' . count($bccEmails) . ', mailer=' . ($this->mailer !== null ? 'SMTP' : 'none'));
+        $this->log('sendIcal: to=' . $toEmail . ', from=' . $fromEmail . ', bcc=' . count($bccEmails) . ', mailer=' . ($this->mailer !== null ? 'SMTP' : 'none'));
 
         $textBody .= $this->buildCaslFooter();
 
@@ -189,17 +189,17 @@ class MailerService
         $body .= '--' . $boundary . '--' . "\r\n";
 
         if ($this->mailer !== null) {
-            error_log('[ksf_FA_Mail] sendIcal: sending via PHPMailer (SMTP)');
+            $this->log('sendIcal: sending via PHPMailer (SMTP)');
             return $this->sendViaPHPMailer($toEmail, $toName, $subject, $body, $fromEmail, '', $bccEmails);
         }
 
-        error_log('[ksf_FA_Mail] sendIcal: no SMTP, using fallback');
+        $this->log('sendIcal: no SMTP, using fallback');
         if (function_exists('send_email')) {
-            error_log('[ksf_FA_Mail] sendIcal: using send_email()');
+            $this->log('sendIcal: using send_email()');
             return send_email($to, $subject, $headers, $body);
         }
 
-        error_log('[ksf_FA_Mail] sendIcal: using PHP mail()');
+        $this->log('sendIcal: using PHP mail()');
         return mail($to, $subject, $body, $headers);
     }
 
@@ -277,5 +277,20 @@ class MailerService
         }
 
         return $default;
+    }
+
+    /**
+     * Write an info-level line to company/<comp>/logs/mail_module.log.
+     *
+     * Delegates to Ksfraser\Traits\FileLogger (PSR-3).  The logger instance
+     * is cached in a static variable so the log directory is resolved once.
+     */
+    private function log(string $message): void
+    {
+        static $logger = null;
+        if ($logger === null) {
+            $logger = new \Ksfraser\Traits\FileLogger('mail_module');
+        }
+        $logger->info($message);
     }
 }
