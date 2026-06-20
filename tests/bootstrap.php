@@ -93,7 +93,7 @@ if (!function_exists('_test_parse_table')) {
         if (preg_match('/`?([a-z_]+)`?\s/', $sql, $m)) {
             $name = $m[1];
             $pref = defined('TB_PREF') ? constant('TB_PREF') : '';
-            if ($pref !== '' && str_starts_with($name, $pref)) {
+            if ($pref !== '' && strpos($name, $pref) === 0) {
                 $name = substr($name, strlen($pref));
             }
             return $name;

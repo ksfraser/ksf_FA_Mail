@@ -142,9 +142,9 @@ if ($pending_confirm) {
 }
 
 if ($test_result !== '') {
-    if (str_contains($test_result, 'failed') || str_starts_with($test_result, 'SMTP test failed') || str_contains($test_result, 'Could not') || str_contains($test_result, 'not selected')) {
+    if (strpos($test_result, 'failed') !== false || strpos($test_result, 'SMTP test failed') === 0 || strpos($test_result, 'Could not') !== false || strpos($test_result, 'not selected') !== false) {
         display_error($test_result);
-    } elseif (str_contains($test_result, 'Please enter') || str_contains($test_result, 'please enter') || str_contains($test_result, 'Valid email') || str_contains($test_result, 'valid email')) {
+    } elseif (strpos($test_result, 'Please enter') !== false || strpos($test_result, 'please enter') !== false || strpos($test_result, 'Valid email') !== false || strpos($test_result, 'valid email') !== false) {
         display_warning($test_result);
     } else {
         display_notification($test_result);

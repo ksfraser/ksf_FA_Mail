@@ -309,7 +309,7 @@ class OutboundAccountService
         ];
 
         $username = $account['smtp_username'];
-        if ($username !== '' && str_contains($username, '@')) {
+        if ($username !== '' && strpos($username, '@') !== false) {
             $parts = explode('@', $username, 2);
             $account['local_part'] = $parts[0];
             $account['domain'] = $parts[1];
@@ -354,7 +354,14 @@ class OutboundAccountService
 
     private static function esc(string $v): string
     {
-        return function_exists('db_escape') ? db_escape($v) : addslashes($v);
+        if (function_exists('db_escape')) {
+            global $db;
+            $db = $GLOBALS['db'] ?? null;
+            if ($db) {
+                return mysqli_real_escape_string($db, $v);
+            }
+        }
+        return addslashes($v);
     }
 
     private static function dbQuery(string $sql, string $msg = '')
