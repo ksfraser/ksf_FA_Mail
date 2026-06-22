@@ -24,6 +24,13 @@ if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
 }
 
+// Shared utility: ensure Composer dependencies are installed (runs once).
+$composerDepsPath = dirname(__DIR__) . '/ksf_FA_Common/src/Utils/ComposerDependencies.php';
+if (file_exists($composerDepsPath)) {
+    require_once $composerDepsPath;
+    \KsfCommon\Utils\ComposerDependencies::ensure(__DIR__);
+}
+
 // -----------------------------------------------------------------------
 // Self-healing — runs at file-inclusion time (session.inc loads hooks.php
 // for ALL root-file extensions regardless of active status).
