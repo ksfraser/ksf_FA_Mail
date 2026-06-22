@@ -174,6 +174,41 @@ class MailerService
 
         $textBody .= $this->buildCaslFooter();
 
+        if ($this->mailer !== null) {
+            $this->log('sendIcal: sending via PHPMailer (SMTP) with Ical property');
+            try {
+                $this->mailer->clearAddresses();
+                $this->mailer->clearCCs();
+                $this->mailer->clearBCCs();
+                $this->mailer->clearAttachments();
+
+                $this->mailer->setFrom($fromEmail);
+                $this->mailer->addAddress($toEmail, $toName);
+                if ($replyToEmail !== '') {
+                    $this->mailer->addReplyTo($replyToEmail);
+                }
+                $this->mailer->Subject = $subject;
+                $this->mailer->Body    = $textBody;
+                $this->mailer->AltBody = '';
+                $this->mailer->Ical    = $icalContent;
+
+                foreach ($this->bccEmails as $bcc) {
+                    $this->mailer->addBCC($bcc);
+                }
+                foreach ($bccEmails as $bcc) {
+                    if ($bcc !== '') {
+                        $this->mailer->addBCC($bcc);
+                    }
+                }
+
+                $this->mailer->send();
+                $this->log('sendIcal via PHPMailer: SUCCESS');
+                return true;
+            } catch (PHPMailerException $e) {
+                $this->log('sendIcal via PHPMailer: FAILED: ' . $e->getMessage());
+            }
+        }
+
         $boundary = 'ksf_cal_' . md5(uniqid((string) mt_rand(), true));
         $to       = $toName !== '' ? '"' . addslashes($toName) . '" <' . $toEmail . '>' : $toEmail;
 
@@ -200,11 +235,6 @@ class MailerService
         $body .= chunk_split(base64_encode($icalContent)) . "\r\n";
 
         $body .= '--' . $boundary . '--' . "\r\n";
-
-        if ($this->mailer !== null) {
-            $this->log('sendIcal: sending via PHPMailer (SMTP)');
-            return $this->sendViaPHPMailer($toEmail, $toName, $subject, $body, $fromEmail, '', $bccEmails, $replyToEmail);
-        }
 
         $this->log('sendIcal: no SMTP, using fallback');
         if (function_exists('send_email')) {
