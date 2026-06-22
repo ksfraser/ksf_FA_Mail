@@ -181,15 +181,17 @@ class MailerService
                 $this->mailer->clearCCs();
                 $this->mailer->clearBCCs();
                 $this->mailer->clearAttachments();
+                $this->mailer->clearReplyTos();
 
                 $this->mailer->setFrom($fromEmail);
                 $this->mailer->addAddress($toEmail, $toName);
                 if ($replyToEmail !== '') {
                     $this->mailer->addReplyTo($replyToEmail);
                 }
-                $this->mailer->Subject  = $subject;
-                $this->mailer->Body     = $textBody;
+                $this->mailer->Subject    = $subject;
+                $this->mailer->Body       = $textBody;
                 $this->mailer->isHTML(false);
+                $this->mailer->Ical       = $icalContent;
 
                 $this->mailer->addStringAttachment(
                     $icalContent,
@@ -223,7 +225,7 @@ class MailerService
             $headers .= 'Reply-To: ' . $replyToEmail . "\r\n";
         }
         $headers .= 'MIME-Version: 1.0' . "\r\n";
-        $headers .= 'Content-Type: multipart/mixed; boundary="' . $boundary . '"' . "\r\n";
+        $headers .= 'Content-Type: multipart/alternative; boundary="' . $boundary . '"' . "\r\n";
 
         if (!empty($bccEmails)) {
             $headers .= 'Bcc: ' . implode(', ', $bccEmails) . "\r\n";
@@ -236,7 +238,6 @@ class MailerService
 
         $body .= '--' . $boundary . "\r\n";
         $body .= 'Content-Type: text/calendar; charset=UTF-8; method=REQUEST' . "\r\n";
-        $body .= 'Content-Disposition: attachment; filename="invite.ics"' . "\r\n";
         $body .= 'Content-Transfer-Encoding: base64' . "\r\n\r\n";
         $body .= chunk_split(base64_encode($icalContent)) . "\r\n";
 
