@@ -1,5 +1,8 @@
 # ksf_FA_Mail — Requirements
 
+**Version:** 2.0.0
+**Date:** 2026-06-21
+
 ## Overview
 SMTP mail module for FrontAccounting using PHPMailer ^6.9, with automatic
 fallback chain: PHPMailer (SMTP) → FA's `send_email()` → PHP `mail()`.
@@ -112,3 +115,48 @@ Test email flow differentiates result display:
 ### FR-036: Test Recipient Default
 The test recipient field on the admin setup page is pre-filled with the current
 FA user's email from `$_SESSION['wa_current_user']->email` if available.
+
+---
+
+### FR-040: Centralized Mail Account Storage (v2.0.0)
+
+A dedicated `ksf_mail_accounts` table replaces `fa_preference_values` for storing
+outbound email account configuration:
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| id | INT PK | Unique account identifier |
+| owner_type | VARCHAR(32) | Module scope: `fa_user`, `hrm_staff`, `crm_contact`, etc. |
+| owner_id | VARCHAR(64) | FK into the owning module's table |
+| local_part | VARCHAR(255) | Email local part (before @) |
+| domain | VARCHAR(255) | Email domain (after @) |
+| smtp_host | VARCHAR(255) | SMTP server hostname |
+| smtp_port | INT | SMTP server port |
+| smtp_secure | VARCHAR(16) | Encryption: none/TLS/SSL |
+| smtp_username | VARCHAR(255) | SMTP auth username (defaults to `local_part@domain`) |
+| smtp_password | VARCHAR(512) | SMTP auth password |
+| imap_host | VARCHAR(255) | IMAP server hostname (future CRM email import) |
+| imap_port | INT | IMAP server port |
+| imap_secure | VARCHAR(16) | IMAP encryption |
+| imap_username | VARCHAR(255) | IMAP auth username |
+| imap_password | VARCHAR(512) | IMAP auth password |
+| bcc_email | VARCHAR(255) | Default BCC for outgoing mail |
+| created_at | DATETIME | Row creation timestamp |
+| updated_at | DATETIME | Last update timestamp |
+
+The `local_part`/`domain` split enables mass domain updates. `OutboundAccountService`
+auto-migrates from `fa_preference_values` on first read, and falls back to system
+SMTP when no personal account is configured.
+
+### FR-044: iCal MIME Structure (v2.0.0)
+
+For Gmail interactive calendar buttons, the email uses `multipart/alternative` with
+an inline `text/calendar; method=REQUEST` part (not `Content-Disposition: attachment`).
+The SMTP path additionally provides a downloadable `.ics` via `addStringAttachment`.
+The fallback `mail()` path uses `multipart/alternative` only.
+
+### FR-045: Shared ComposerDependencies (v2.0.0)
+
+All KSF modules use `KsfCommon\Utils\ComposerDependencies::ensure(__DIR__)` from
+`ksf_FA_Common/src/Utils/` instead of inline `ensure_composer_dependencies()`
+functions, reducing code duplication.

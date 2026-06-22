@@ -1,5 +1,8 @@
 # ksf_FA_Mail — UAT Test Cases
 
+**Version:** 2.0.0
+**Date:** 2026-06-21
+
 ## TC-001: Setup Page Access
 1. Login as admin
 2. Navigate to System → Mail Sending Setup
@@ -103,3 +106,29 @@
 2. Verify SMTP fields (host, port, secure, username, password) appear instantly without page reload
 3. Switch Mail Type to "PHP's mail function"
 4. Verify SMTP fields hide instantly
+
+---
+
+## TC-020: Personal Mail Account Setup (v2.0.0)
+1. Login as non-admin user
+2. Navigate to E-Mail → My Mail Account
+3. Enter `local_part` and `domain` (e.g. `john` + `example.com`)
+4. Enter SMTP host, port, username, password
+5. Click Update
+6. Verify settings persist after page reload
+7. Verify the account appears in sender dropdown when composing email
+
+## TC-021: Mail Account Migration (v2.0.0)
+1. Login as user with legacy `fa_preference_values` mail config
+2. Navigate to My Mail Account
+3. Verify settings are pre-filled from legacy config (auto-migration)
+4. Verify `ksf_mail_accounts` table contains the migrated row
+5. Verify legacy `fa_preference_values` are unchanged
+
+## TC-022: Gmail iCal Button Test (v2.0.0)
+1. Configure SMTP or ensure PHP mail works
+2. Create a calendar event and send iCal invitations to a Gmail address
+3. Open the received email
+4. **Expected:** Gmail shows "Add to Calendar" / "Yes" / "Maybe" / "No" buttons
+5. **Known quirk:** If open in reading pane, buttons may not appear — reload in separate tab
+6. Verify `.ics` file is attached when using SMTP path; no `.ics` attachment when using fallback `mail()` path (inline only)

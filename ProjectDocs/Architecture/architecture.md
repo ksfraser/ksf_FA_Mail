@@ -1,5 +1,8 @@
 # ksf_FA_Mail — Architecture
 
+**Version:** 2.0.0
+**Date:** 2026-06-21
+
 ## Package Structure
 
 ```
@@ -19,7 +22,7 @@ ksf_FA_Mail/
 │       ├── OutboundAccountService.php # Multi-tier account resolution + sender DDL rendering
 │       └── PersonalMailSetupController.php  # Personal SMTP page logic
 ├── sql/
-│   └── (reserved for future sender-account schema)
+│   └── mail_accounts.sql           # ksf_mail_accounts table DDL (v2.0.0)
 ├── tests/
 │   └── Unit/
 │       ├── MailerServiceTest.php
@@ -46,15 +49,22 @@ ksf_FA_Mail/
 - Automatic autoloading
 - Easy updates via `composer update`
 
-### Why company prefs for SMTP settings?
-- FA provides `get_company_pref()` / `update_company_prefs()` API
-- Settings scoped per company, no DB schema changes
+### Why ksf_mail_accounts instead of fa_preference_values? (v2.0.0)
+Starting in v2.0.0, mail account configuration moved from `fa_preference_values` to a
+dedicated `ksf_mail_accounts` table. Benefits:
+- Relational structure: single row per account, easy to query all users
+- `local_part`/`domain` split enables mass domain updates
+- SMTP + IMAP columns in one table — IMAP ready for future CRM email import
+- `owner_type`/`owner_id` pattern allows other modules (HRM, CRM) to register accounts
+
+Auto-migration from `fa_preference_values` occurs on first read via
+`OutboundAccountService::migrateFromLegacy()`.
 
 ### Multi-Tier Sender System
 Three tiers of outbound accounts, resolved in order:
 
 1. **System** — company prefs configured by admin on `mail_setup.php`
-2. **Personal** — per-user SMTP stored in `fa_preference_values` via `ksf_preference_get/set` hooks
+2. **Personal** — per-user SMTP stored in `ksf_mail_accounts` table (`owner_type='fa_user'`); managed via `my_mail_account.php`
 3. **Extensible** — other modules inject senders via `get_available_senders` hook and resolve configs via `resolve_sender_config` hook
 
 The sender dropdown (`OutboundAccountService::renderSelector()`) aggregates all three tiers. Selected value is resolved via `resolveConfig()`.
@@ -129,6 +139,28 @@ Returns `true` on success, `false` on failure, `null` if SMTP not configured.
 │             │                                └──────────────────┘
 └─────────────┘
 ```
+
+### iCal MIME Structure (v2.0.0)
+
+For calendar invitations, the email MIME structure changed from `multipart/mixed` with
+`Content-Disposition: attachment` (downloadable `.ics`) to `multipart/alternative` with
+inline `text/calendar; method=REQUEST` part. This enables Gmail to show interactive
+Yes/No/Maybe buttons.
+
+**SMTP path (PHPMailer):** Uses `Ical` property (places calendar in alternative section)
+plus `addStringAttachment` (provides downloadable `.ics`).
+
+**Fallback path (PHP `mail()`):** Uses manual `multipart/alternative` construction in
+`MailerService::sendIcal()` (`sendViaFallback()`) and `cal_mail_with_ical()`.
+
+**Known Gmail quirk:** First open in reading pane may not show buttons; reload in separate
+window fixes it. The MIME structure is correct per RFC 6047 (iMIP).
+
+### Shared ComposerDependencies (v2.0.0)
+
+All KSF modules now use `KsfCommon\Utils\ComposerDependencies::ensure(__DIR__)` from
+`ksf_FA_Common/src/Utils/`. This replaces inline `ensure_composer_dependencies()`
+functions, reducing duplication across Calendar, Mail, and RBAC modules.
 
 ### UML Diagram
 See `ProjectDocs/uml/sequence_send_mail.svg` for the full send-message sequence.

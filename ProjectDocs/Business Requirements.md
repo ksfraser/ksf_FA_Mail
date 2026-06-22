@@ -1,5 +1,8 @@
 # Business Requirements — ksf_FA_Mail
 
+**Version:** 2.0.0
+**Date:** 2026-06-21
+
 ## BR-001: Reliable outbound email from FA
 FrontAccounting's default mail path (`/usr/sbin/sendmail`) is frequently absent
 or misconfigured in containerised deployments. FA also lacks SMTP auth support
