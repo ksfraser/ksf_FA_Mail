@@ -75,8 +75,9 @@ ksf_mail_send_ical($toEmail, $toName, $subject, $textBody, $icalContent, $fromEm
 
 ## Development Workflow
 
-1. **Develop** in this repo (feature branches preferred)
+1. **Develop** in this repo (feature/fix branches preferred — e.g. `feature/description` or `fix/description`)
 2. **Test**: `./vendor/bin/phpunit`
 3. **Lint**: `php -l` on modified PHP files
-4. **Commit** and **Push** to GitHub
+4. **ALWAYS COMMIT** and **PUSH** branch to GitHub (do not wait for user permission)
 5. **Merge** to `master` when ready
+6. **Push** `master` to GitHub
