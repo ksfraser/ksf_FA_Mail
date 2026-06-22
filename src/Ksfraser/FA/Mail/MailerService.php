@@ -175,7 +175,7 @@ class MailerService
         $textBody .= $this->buildCaslFooter();
 
         if ($this->mailer !== null) {
-            $this->log('sendIcal: sending via PHPMailer (SMTP) with Ical property');
+            $this->log('sendIcal: sending via PHPMailer (SMTP)');
             try {
                 $this->mailer->clearAddresses();
                 $this->mailer->clearCCs();
@@ -187,10 +187,16 @@ class MailerService
                 if ($replyToEmail !== '') {
                     $this->mailer->addReplyTo($replyToEmail);
                 }
-                $this->mailer->Subject = $subject;
-                $this->mailer->Body    = $textBody;
-                $this->mailer->AltBody = '';
-                $this->mailer->Ical    = $icalContent;
+                $this->mailer->Subject  = $subject;
+                $this->mailer->Body     = $textBody;
+                $this->mailer->isHTML(false);
+
+                $this->mailer->addStringAttachment(
+                    $icalContent,
+                    'invite.ics',
+                    'base64',
+                    'text/calendar; charset=UTF-8; method=REQUEST'
+                );
 
                 foreach ($this->bccEmails as $bcc) {
                     $this->mailer->addBCC($bcc);
