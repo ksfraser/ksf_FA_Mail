@@ -172,7 +172,18 @@ class MailerService
     ): bool {
         $this->log('sendIcal: to=' . $toEmail . ', from=' . $fromEmail . ', replyTo=' . $replyToEmail . ', bcc=' . count($bccEmails) . ', mailer=' . ($this->mailer !== null ? 'SMTP' : 'none'));
 
+        if ($toEmail === '' || strpos($toEmail, '@') === false) {
+            $this->log('sendIcal: invalid toEmail, returning false');
+            return false;
+        }
+
         $textBody .= $this->buildCaslFooter();
+
+        // Filter empty addresses from both config BCC and caller BCC lists.
+        $allBcc = array_filter(
+            array_merge($this->bccEmails, $bccEmails),
+            function ($addr) { return $addr !== '' && strpos($addr, '@') !== false; }
+        );
 
         if ($this->mailer !== null) {
             $this->log('sendIcal: sending via PHPMailer (SMTP)');
@@ -200,13 +211,8 @@ class MailerService
                     'text/calendar; charset=UTF-8; method=REQUEST'
                 );
 
-                foreach ($this->bccEmails as $bcc) {
+                foreach ($allBcc as $bcc) {
                     $this->mailer->addBCC($bcc);
-                }
-                foreach ($bccEmails as $bcc) {
-                    if ($bcc !== '') {
-                        $this->mailer->addBCC($bcc);
-                    }
                 }
 
                 $this->mailer->send();
@@ -227,8 +233,8 @@ class MailerService
         $headers .= 'MIME-Version: 1.0' . "\r\n";
         $headers .= 'Content-Type: multipart/alternative; boundary="' . $boundary . '"' . "\r\n";
 
-        if (!empty($bccEmails)) {
-            $headers .= 'Bcc: ' . implode(', ', $bccEmails) . "\r\n";
+        if (!empty($allBcc)) {
+            $headers .= 'Bcc: ' . implode(', ', $allBcc) . "\r\n";
         }
 
         $body  = '--' . $boundary . "\r\n";
