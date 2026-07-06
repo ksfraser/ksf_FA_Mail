@@ -7,6 +7,14 @@ namespace Ksfraser\FA\Mail;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
+/**
+ * Admin mail setup controller.
+ *
+ * Manages system-level SMTP configuration stored in company preferences.
+ * Provides validation, connectivity testing, and test-email sending.
+ *
+ * @package Ksfraser\FA\Mail
+ */
 class SetupController
 {
     private const PREFS = [
@@ -19,6 +27,11 @@ class SetupController
         'bcc_email'     => ['type' => 'varchar', 'size' => 60,  'default' => ''],
     ];
 
+    /**
+     * Ensure all mail-related company preferences exist with defaults.
+     *
+     * @return int Number of preferences initialised.
+     */
     public function ensureDefaults(): int
     {
         $init = 0;
@@ -31,6 +44,11 @@ class SetupController
         return $init;
     }
 
+    /**
+     * Read all mail preferences from company prefs, with defaults.
+     *
+     * @return array Key/value map of preference names to values.
+     */
     public function getPrefs(): array
     {
         $prefs = [];
@@ -42,6 +60,11 @@ class SetupController
         return $prefs;
     }
 
+    /**
+     * Save mail preferences to company prefs.
+     *
+     * @param array $data Key/value pairs from the setup form.
+     */
     public function update(array $data): void
     {
         if (!function_exists('update_company_prefs')) {
@@ -55,6 +78,12 @@ class SetupController
         update_company_prefs($payload);
     }
 
+    /**
+     * Validate SMTP configuration fields.
+     *
+     * @param array $data Form values.
+     * @return string|null Error message, or null if valid.
+     */
     public function validate(array $data): ?string
     {
         if (($data['mail_type'] ?? '') !== 'SMTP') {
@@ -70,6 +99,15 @@ class SetupController
         return null;
     }
 
+    /**
+     * Test SMTP connectivity and authentication without sending email.
+     *
+     * Connects to the configured SMTP server, authenticates if credentials
+     * are provided, then closes the connection.  No email is sent.
+     *
+     * @param array $data SMTP configuration to test.
+     * @return string Result message (success, warning, or error).
+     */
     public function testSettings(array $data): string
     {
         $error = $this->validate($data);
@@ -119,6 +157,16 @@ class SetupController
         }
     }
 
+    /**
+     * Send a test email to a given recipient.
+     *
+     * Validates the address, resolves a from-address (smtp_username → session
+     * user email → recipient), and delegates to MailerService::send().
+     *
+     * @param array  $data           SMTP configuration.
+     * @param string $recipientEmail Target email address.
+     * @return string Result message.
+     */
     public function sendTestEmailTo(array $data, string $recipientEmail): string
     {
         $error = $this->validate($data);

@@ -4,6 +4,16 @@ declare(strict_types=1);
 
 namespace Ksfraser\FA\Mail;
 
+/**
+ * Multi-tier outbound account service.
+ *
+ * Manages SMTP/IMAP credentials in the `ksf_mail_accounts` table with a
+ * generic `owner_type`/`owner_id` pattern.  Supports three tiers:
+ * System (company prefs), Personal (per-user), and Extensible (hook-injected
+ * by other modules via `get_available_senders` / `resolve_sender_config`).
+ *
+ * @package Ksfraser\FA\Mail
+ */
 class OutboundAccountService
 {
     public const TYPE_SYSTEM = 'system';
@@ -13,6 +23,15 @@ class OutboundAccountService
     private const PREFS_TABLE = 'fa_preference_values';
     private const MODULE = 'ksf_FA_Mail';
 
+    /**
+     * List all available sender accounts for a user.
+     *
+     * Returns the built-in System and Personal entries, plus any entries
+     * injected by other modules via the `get_available_senders` hook.
+     *
+     * @param string $userId Current FA user ID.
+     * @return array[] List of ['value' => string, 'label' => string].
+     */
     public static function getAvailableAccounts(string $userId): array
     {
         $accounts = [];
@@ -52,6 +71,17 @@ class OutboundAccountService
         return $accounts;
     }
 
+    /**
+     * Resolve an account type to a MailerService-compatible config array.
+     *
+     * 'system' → empty array (MailerService falls back to company prefs).
+     * 'personal' → reads ksf_mail_accounts for the current user.
+     * Other types → dispatched via resolve_sender_config hook.
+     *
+     * @param string $userId      Current FA user ID.
+     * @param string $accountType Account selector value.
+     * @return array MailerService config keys (mail_type, smtp_*, bcc_email, etc.).
+     */
     public static function resolveConfig(string $userId, string $accountType): array
     {
         if ($accountType === self::TYPE_SYSTEM) {
@@ -77,6 +107,13 @@ class OutboundAccountService
         return [];
     }
 
+    /**
+     * Render an HTML <select> dropdown of available sender accounts.
+     *
+     * @param string $userId   Current FA user ID.
+     * @param string $selected Value to pre-select (default: 'system').
+     * @return string HTML <select> element.
+     */
     public static function renderSelector(string $userId, string $selected = 'system'): string
     {
         $accounts = self::getAvailableAccounts($userId);
@@ -94,6 +131,16 @@ class OutboundAccountService
     // Account CRUD — ksf_mail_accounts
     // -----------------------------------------------------------------------
 
+    /**
+     * Get a mail account for a given owner.
+     *
+     * Reads from `ksf_mail_accounts`.  If none found, attempts auto-migration
+     * from legacy `fa_preference_values`.
+     *
+     * @param string $ownerType Owner scope (e.g. 'user').
+     * @param string $ownerId   FK into the owning module's table.
+     * @return array Account row or empty array if not found.
+     */
     public static function getAccount(string $ownerType, string $ownerId): array
     {
         $row = self::dbGetAccount($ownerType, $ownerId);
@@ -109,6 +156,15 @@ class OutboundAccountService
         return [];
     }
 
+    /**
+     * Create or update a mail account.
+     *
+     * Uses INSERT … ON DUPLICATE KEY UPDATE keyed on (owner_type, owner_id).
+     *
+     * @param string $ownerType Owner scope.
+     * @param string $ownerId   Owner identifier.
+     * @param array  $data      Account fields (local_part, domain, smtp_*, imap_*, etc.).
+     */
     public static function saveAccount(string $ownerType, string $ownerId, array $data): void
     {
         $allowed = [
@@ -147,6 +203,12 @@ class OutboundAccountService
         self::dbQuery($sql, 'Failed to save mail account');
     }
 
+    /**
+     * Delete a mail account.
+     *
+     * @param string $ownerType Owner scope.
+     * @param string $ownerId   Owner identifier.
+     */
     public static function deleteAccount(string $ownerType, string $ownerId): void
     {
         $sql = "DELETE FROM `" . self::accountsTable() . "`"

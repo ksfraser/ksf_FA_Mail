@@ -1,7 +1,7 @@
 # Business Requirements — ksf_FA_Mail
 
-**Version:** 2.0.0
-**Date:** 2026-06-21
+**Version:** 2.1.0
+**Date:** 2026-07-05
 
 ## BR-001: Reliable outbound email from FA
 FrontAccounting's default mail path (`/usr/sbin/sendmail`) is frequently absent

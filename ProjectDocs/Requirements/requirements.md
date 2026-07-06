@@ -1,7 +1,7 @@
 # ksf_FA_Mail — Requirements
 
-**Version:** 2.0.0
-**Date:** 2026-06-21
+**Version:** 2.1.0
+**Date:** 2026-07-05
 
 ## Overview
 SMTP mail module for FrontAccounting using PHPMailer ^6.9, with automatic
@@ -160,3 +160,10 @@ The fallback `mail()` path uses `multipart/alternative` only.
 All KSF modules use `KsfCommon\Utils\ComposerDependencies::ensure(__DIR__)` from
 `ksf_FA_Common/src/Utils/` instead of inline `ensure_composer_dependencies()`
 functions, reducing code duplication.
+
+### FR-046: sendIcal empty-address guard and BCC filter (v2.1.0)
+
+`MailerService::sendIcal()` guards against empty or invalid `toEmail` by returning
+`false` early, preventing PHPMailer exceptions. BCC address lists are filtered
+through `array_filter` to silently skip empty or non-email strings instead of
+passing them to PHPMailer.

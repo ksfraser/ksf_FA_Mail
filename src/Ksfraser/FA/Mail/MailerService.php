@@ -7,6 +7,15 @@ namespace Ksfraser\FA\Mail;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
+/**
+ * Core mailer with SMTP and fallback support.
+ *
+ * Sends email via PHPMailer (SMTP) when configured, with automatic fallback
+ * to FA's `send_email()` then PHP `mail()`.  Appends CASL-compliant footer
+ * to all outgoing messages.  Supports plain text and iCal calendar invites.
+ *
+ * @package Ksfraser\FA\Mail
+ */
 class MailerService
 {
     private ?PHPMailer $mailer = null;
@@ -67,6 +76,11 @@ class MailerService
         }
     }
 
+    /**
+     * Check if SMTP is configured and available.
+     *
+     * @return bool True if PHPMailer was successfully initialised with SMTP config.
+     */
     public function isAvailable(): bool
     {
         return $this->mailer !== null;
@@ -89,6 +103,11 @@ class MailerService
         return $this->sendViaFallback($toEmail, $toName, $subject, $body, $fromEmail);
     }
 
+    /**
+     * Send via PHPMailer SMTP, falling back to sendViaFallback on failure.
+     *
+     * @return bool True if delivered.
+     */
     private function sendViaPHPMailer(
         string $toEmail,
         string $toName,
@@ -160,6 +179,24 @@ class MailerService
     }
 
 
+    /**
+     * Send an iCal calendar invitation.
+     *
+     * Builds a multipart/alternative MIME message with text/plain body and
+     * text/calendar (iCal) inline part.  When SMTP is available, also attaches
+     * a downloadable .ics file.  Filters empty/invalid BCC addresses silently.
+     * Returns false immediately if toEmail is empty or lacks '@'.
+     *
+     * @param string $toEmail      Recipient email.
+     * @param string $toName       Recipient display name.
+     * @param string $subject      Email subject.
+     * @param string $textBody     Plain text body (CASL footer appended).
+     * @param string $icalContent  iCal VCALENDAR content.
+     * @param string $fromEmail    Sender email.
+     * @param array  $bccEmails    BCC recipient list (empties filtered).
+     * @param string $replyToEmail Optional Reply-To address.
+     * @return bool True if accepted for delivery.
+     */
     public function sendIcal(
         string $toEmail,
         string $toName,

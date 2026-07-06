@@ -1,5 +1,12 @@
 # Changelog — ksf_FA_Mail
 
+## v2.1.0 — 2026-07-05
+
+### Bug Fixes
+- **My Mail Account accessible to all users** — `$page_security` changed from `SA_MAIL_PERSONAL` to `SA_OPEN` so any authenticated user can update their own mail settings without requiring a specific security role. Menu registration in `hooks.php` updated to match.
+- **`sendIcal` empty-address guard** — returns `false` early when `toEmail` is empty or lacks `@`, preventing PHPMailer exceptions on invalid recipients.
+- **BCC address filtering** — `array_filter` applied to BCC lists in `sendIcal` to silently skip empty or invalid addresses instead of passing them to PHPMailer.
+
 ## v2.0.0 — 2026-06-21
 
 ### Major Features

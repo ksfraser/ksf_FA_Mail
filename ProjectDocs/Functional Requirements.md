@@ -1,7 +1,7 @@
 # Functional Requirements — ksf_FA_Mail
 
-**Version:** 2.0.0
-**Date:** 2026-06-21
+**Version:** 2.1.0
+**Date:** 2026-07-05
 
 | ID | Description | Status |
 |----|-------------|--------|
@@ -26,7 +26,8 @@
 | FR-036 | Test recipient field pre-filled with current user's email from session | Implemented |
 | FR-040 | `ksf_mail_accounts` table with `local_part`/`domain` split, SMTP + IMAP columns, `owner_type`/`owner_id` | Implemented |
 | FR-041 | Auto-migration from `fa_preference_values` to `ksf_mail_accounts` on first read | Implemented |
-| FR-042 | Personal SMTP credentials per user (SA_MAIL_PERSONAL); mail managers SA_MAIL_MANAGE | Implemented |
+| FR-042 | My Mail Account accessible to all authenticated users (SA_OPEN); mail managers SA_MAIL_MANAGE | Implemented |
 | FR-043 | Personal credentials override system SMTP (FROM); system SMTP + Reply-To set to Calendar inviter as fallback | Implemented |
 | FR-044 | iCal `Ical` property (PHPMailer) + `addStringAttachment` for SMTP path; `multipart/alternative` for fallback | Implemented |
 | FR-045 | Shared `ComposerDependencies::ensure()` from `ksf_FA_Common` — no inline bootstrap duplication | Implemented |
+| FR-046 | `sendIcal` guards against empty/invalid `toEmail` and filters empty BCC addresses | Implemented |

@@ -1,7 +1,7 @@
 # ksf_FA_Mail — UAT Test Cases
 
-**Version:** 2.0.0
-**Date:** 2026-06-21
+**Version:** 2.1.0
+**Date:** 2026-07-05
 
 ## TC-001: Setup Page Access
 1. Login as admin
@@ -124,6 +124,13 @@
 3. Verify settings are pre-filled from legacy config (auto-migration)
 4. Verify `ksf_mail_accounts` table contains the migrated row
 5. Verify legacy `fa_preference_values` are unchanged
+
+## TC-023: My Mail Account Access Without Security Role (v2.1.0)
+1. Login as a user whose security role does NOT include `SA_MAIL_PERSONAL`
+2. Navigate to E-Mail → My Mail Account
+3. Verify the page loads without "security settings do not permit" error
+4. Enter personal SMTP configuration and save
+5. Verify notification "Your mail account settings have been updated."
 
 ## TC-022: Gmail iCal Button Test (v2.0.0)
 1. Configure SMTP or ensure PHP mail works

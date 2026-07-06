@@ -1,7 +1,7 @@
 # ksf_FA_Mail — Architecture
 
-**Version:** 2.0.0
-**Date:** 2026-06-21
+**Version:** 2.1.0
+**Date:** 2026-07-05
 
 ## Package Structure
 
@@ -9,18 +9,18 @@
 ksf_FA_Mail/
 ├── composer.json              # Dependencies: phpmailer/phpmailer ^6.9
 ├── hooks.php                  # FA hooks: menu, mail_send, get_available_senders, resolve_sender_config
-├── mail_setup.php             # Admin setup page (System → Mail Sending Setup)
-├── my_mail_setup.php          # User personal SMTP page
-├── class.mail.inc             # Drop-in replacement for FA's mail.class.inc
-├── includes/
-│   ├── mail_service.inc       # Procedural helpers (ksf_mail_send, ksf_mail_send_ical)
-│   └── mail_hooks_db.inc      # Hook implementations
-├── src/
-│   └── Ksfraser/FA/Mail/
-│       ├── MailerService.php          # Core mailer: PHPMailer → FA send_email → PHP mail
-│       ├── SetupController.php        # Admin setup business logic + validation
-│       ├── OutboundAccountService.php # Multi-tier account resolution + sender DDL rendering
-│       └── PersonalMailSetupController.php  # Personal SMTP page logic
+ ├── mail_setup.php             # Admin setup page (System → Mail Sending Setup)
+ ├── my_mail_account.php        # Personal mail account page (E-Mail → My Mail Account)
+ ├── class.mail.inc             # Drop-in replacement for FA's mail.class.inc
+ ├── includes/
+ │   ├── mail_service.inc       # Procedural helpers (ksf_mail_send, ksf_mail_send_ical)
+ │   └── mail_hooks_db.inc      # Hook implementations
+ ├── src/
+ │   └── Ksfraser/FA/Mail/
+ │       ├── MailerService.php          # Core mailer: PHPMailer → FA send_email → PHP mail
+ │       ├── SetupController.php        # Admin setup business logic + validation
+ │       ├── OutboundAccountService.php # Multi-tier account resolution + sender DDL rendering
+ │       └── PersonalMailSetupController.php  # Personal SMTP page logic
 ├── sql/
 │   └── mail_accounts.sql           # ksf_mail_accounts table DDL (v2.0.0)
 ├── tests/
@@ -60,11 +60,11 @@ dedicated `ksf_mail_accounts` table. Benefits:
 Auto-migration from `fa_preference_values` occurs on first read via
 `OutboundAccountService::migrateFromLegacy()`.
 
-### Multi-Tier Sender System
+ ### Multi-Tier Sender System
 Three tiers of outbound accounts, resolved in order:
 
 1. **System** — company prefs configured by admin on `mail_setup.php`
-2. **Personal** — per-user SMTP stored in `ksf_mail_accounts` table (`owner_type='fa_user'`); managed via `my_mail_account.php`
+2. **Personal** — per-user SMTP stored in `ksf_mail_accounts` table (`owner_type='fa_user'`); managed via `my_mail_account.php` (accessible to all authenticated users via `SA_OPEN`)
 3. **Extensible** — other modules inject senders via `get_available_senders` hook and resolve configs via `resolve_sender_config` hook
 
 The sender dropdown (`OutboundAccountService::renderSelector()`) aggregates all three tiers. Selected value is resolved via `resolveConfig()`.
