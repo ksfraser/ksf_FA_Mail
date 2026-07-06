@@ -426,7 +426,7 @@ class email_app extends application
             0,
             _('My Mail Account'),
             'modules/ksf_FA_Mail/my_mail_account.php?',
-            'SA_MAIL_PERSONAL',
+            'SA_OPEN',
             MENU_SETTINGS
         );
     }

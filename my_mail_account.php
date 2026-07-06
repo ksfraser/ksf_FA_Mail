@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-$page_security = 'SA_MAIL_PERSONAL';
+$page_security = 'SA_OPEN';
 $path_to_root = '../..';
 
 include($path_to_root . '/includes/session.inc');
