@@ -295,6 +295,64 @@ class hooks_ksf_fa_mail extends hooks
      * This module handles owner_type='user'.  Other modules (HRM, CRM, …)
      * respond with their own owner types.
      */
+    /**
+     * Render an outbound-sender <select> for another module to embed.
+     *
+     * Hook contract for other modules:
+     *   ksf_mail_sender_selector($data)  where $data = [user_id, selected]
+     *     — return rendered HTML, or null to decline (no selector offered).
+     *
+     * Consumers MUST ask by hook rather than calling OutboundAccountService
+     * directly. A caller cannot judge this service's usability: the class is
+     * autoloadable even when the mail module is not installed, because other
+     * extensions contribute the PSR-4 mapping. Deciding "is it safe" by
+     * inspecting its tables from outside is a cross-module schema dependency,
+     * and when the table is absent FA's db_query() raises E_USER_ERROR, which is
+     * fatal and not catchable -- it silently truncated the calendar view.
+     * The schema is this module's business, so the guard belongs here.
+     *
+     * @param array $data [user_id => string, selected => string]
+     * @return string|null
+     */
+    public function ksf_mail_sender_selector($data)
+    {
+        if (!is_array($data) || empty($data['user_id'])) {
+            return null;
+        }
+
+        if (!class_exists('\\Ksfraser\\FA\\Mail\\OutboundAccountService')) {
+            return null;
+        }
+
+        // Own-table guard: decline when this module's schema is not installed.
+        if (!function_exists('db_query')) {
+            return null;
+        }
+
+        $prefix = defined('TB_PREF') ? TB_PREF : '';
+        $probe = db_query(
+            "SHOW TABLES LIKE '" . db_escape($prefix . 'ksf_mail_accounts') . "'",
+            'ksf_mail_accounts'
+        );
+
+        if (!$probe || db_num_rows($probe) === 0) {
+            return null;
+        }
+
+        $selected = isset($data['selected']) ? (string) $data['selected'] : 'system';
+
+        try {
+            $html = \Ksfraser\FA\Mail\OutboundAccountService::renderSelector(
+                (string) $data['user_id'],
+                $selected
+            );
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return is_string($html) && $html !== '' ? $html : null;
+    }
+
     public function ksf_mail_account_get(&$result, $ownerType, $ownerId)
     {
         if ($ownerType === 'user' && class_exists('\Ksfraser\FA\Mail\OutboundAccountService')) {
