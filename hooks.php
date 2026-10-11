@@ -296,11 +296,21 @@ class hooks_ksf_fa_mail extends hooks
      * respond with their own owner types.
      */
     /**
-     * Render an outbound-sender <select> for another module to embed.
+     * Report the outbound senders this module offers.
      *
      * Hook contract for other modules:
      *   ksf_mail_sender_selector($data)  where $data = [user_id, selected]
-     *     — return rendered HTML, or null to decline (no selector offered).
+     *     — return an object exposing options() and selected(), or null to decline.
+     *
+     * Returns DATA, not markup. The consumer renders it, so another module can
+     * satisfy this contract with different senders or labels and no consumer
+     * needs to change. Returning HTML would pin every consumer to this module's
+     * markup and make the extension point decorative.
+     *
+     * Options are plain value/label arrays. The DTO interface is owned by the
+     * consumer (ksf_FA_Calendar\DTO\OutboundSenderSelector); depending on it here
+     * would re-create the coupling this hook exists to remove. PHP duck-types the
+     * return and the consumer validates the shape via satisfies().
      *
      * Consumers MUST ask by hook rather than calling OutboundAccountService
      * directly. A caller cannot judge this service's usability: the class is
@@ -312,7 +322,7 @@ class hooks_ksf_fa_mail extends hooks
      * The schema is this module's business, so the guard belongs here.
      *
      * @param array $data [user_id => string, selected => string]
-     * @return string|null
+     * @return object|null SenderSelector, or null to decline.
      */
     public function ksf_mail_sender_selector($data)
     {
@@ -342,15 +352,33 @@ class hooks_ksf_fa_mail extends hooks
         $selected = isset($data['selected']) ? (string) $data['selected'] : 'system';
 
         try {
-            $html = \Ksfraser\FA\Mail\OutboundAccountService::renderSelector(
-                (string) $data['user_id'],
-                $selected
+            $accounts = \Ksfraser\FA\Mail\OutboundAccountService::getAvailableAccounts(
+                (string) $data['user_id']
             );
         } catch (\Throwable $e) {
             return null;
         }
 
-        return is_string($html) && $html !== '' ? $html : null;
+        if (!is_array($accounts) || $accounts === []) {
+            return null;
+        }
+
+        $options = array();
+        foreach ($accounts as $account) {
+            if (!is_array($account) || !isset($account['value']) || (string) $account['value'] === '') {
+                continue;
+            }
+            $options[] = array(
+                'value' => (string) $account['value'],
+                'label' => isset($account['label']) ? (string) $account['label'] : (string) $account['value'],
+            );
+        }
+
+        if ($options === []) {
+            return null;
+        }
+
+        return new SenderSelector($options, $selected);
     }
 
     public function ksf_mail_account_get(&$result, $ownerType, $ownerId)
