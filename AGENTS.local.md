@@ -56,6 +56,16 @@ release of this module ever created that table, and because FrontAccounting's
 **Rule for this module:** every table the code addresses must be created by a
 file in `sql/`, with the literal `0_` company prefix (`db_import()` only
 replaces that literal). `TableNamingTest` enforces both.
+
+**Do not rely on the shared package's default table name.** The last tagged
+release of `ksfraser/ksf-fa-common` (v1.0.14) still defaults
+`PreferenceRepository` to the legacy `fa_preference_values`; the
+`0_ksf_module_prefs` default landed after that tag. This module therefore
+names the table explicitly (`Preferences::PREFERENCE_TABLE`). Note also that
+the estate binds the package classes to whichever copy's `compat.php` runs
+first — the copy whose `class_alias()` calls load the shared classes — so
+the newer default is inert until `ksf_FA_Common` is released and every
+module's vendor is rebuilt.
 ## Account Resolution
 1. **System** → `MailerService([])` reads company prefs (`get_company_pref`)
 2. **Personal** → `OutboundAccountService::getPersonalConfig($userId)` reads from `0_ksf_mail_accounts`
