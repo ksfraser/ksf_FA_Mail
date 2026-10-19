@@ -29,7 +29,7 @@ if (!function_exists('get_company_pref')) {
  * Stub for set_company_pref().
  */
 if (!function_exists('set_company_pref')) {
-    function set_company_pref(string $name, string $module, string $type, int $size, $value): void
+    function set_company_pref(string $name, $module, $type, int $size, $value): void
     {
         // no-op
     }
@@ -68,11 +68,29 @@ if (!class_exists('hooks')) {
 
 /**
  * In-memory stubs for test tables.
- * @var array<string, array<string, array<string, array<string, string>>>>  [_test_prefs][module][user][key]=value
- * @var array<string, array>  [_test_accounts][ownerType][ownerId]=row
+ *
+ * `_test_prefs` is the shared cross-module preference store
+ * (`0_ksf_module_prefs`), keyed by table -> module -> user -> key.
+ *
+ * `_test_accounts` is this module's own account table (`0_ksf_mail_accounts`),
+ * keyed by owner type -> owner id.
+ *
+ * `_test_sql` records every statement the code under test sent to the
+ * database, and `_test_unknown_tables` records every table that no stub
+ * knows about.  FrontAccounting's db_query() returns false without an error
+ * when a statement fails, so a module that addresses a table that does not
+ * exist fails *silently*; recording the statements is what makes that
+ * failure visible to a test.
+ *
+ * @var array<string, array<string, array<string, array<string, string>>>>
+ * @var array<string, array>
+ * @var string[]
+ * @var string[]
  */
 $GLOBALS['_test_prefs'] = [];
 $GLOBALS['_test_accounts'] = [];
+$GLOBALS['_test_sql'] = [];
+$GLOBALS['_test_unknown_tables'] = [];
 
 /**
  * Return the ksf_mail_accounts table name (with optional prefix).
@@ -85,31 +103,61 @@ if (!function_exists('_test_accounts_table')) {
 }
 
 /**
- * Parse a table name from SQL, stripping backticks and any TB_PREF prefix.
+ * Return the shared module preference store table name (with optional prefix).
  */
-if (!function_exists('_test_parse_table')) {
-    function _test_parse_table(string $sql): ?string
+if (!function_exists('_test_prefs_table')) {
+    function _test_prefs_table(): string
     {
-        if (preg_match('/`?([a-z_]+)`?\s/', $sql, $m)) {
-            $name = $m[1];
-            $pref = defined('TB_PREF') ? constant('TB_PREF') : '';
-            if ($pref !== '' && strpos($name, $pref) === 0) {
-                $name = substr($name, strlen($pref));
-            }
-            return $name;
+        return (defined('TB_PREF') ? constant('TB_PREF') : '') . 'ksf_module_prefs';
+    }
+}
+
+/**
+ * Extract the table a statement addresses.
+ */
+if (!function_exists('_test_statement_table')) {
+    function _test_statement_table(string $sql): ?string
+    {
+        if (preg_match('/\bFROM\s+`?([A-Za-z0-9_]+)`?/i', $sql, $m)) {
+            return $m[1];
+        }
+        if (preg_match('/\bINTO\s+`?([A-Za-z0-9_]+)`?/i', $sql, $m)) {
+            return $m[1];
         }
         return null;
     }
 }
 
 /**
- * Stub for db_query() — handles fa_preference_values AND ksf_mail_accounts.
+ * Strip the company prefix from a table name.
+ */
+if (!function_exists('_test_strip_prefix')) {
+    function _test_strip_prefix(string $table): string
+    {
+        $pref = defined('TB_PREF') ? constant('TB_PREF') : '';
+        if ($pref !== '' && strpos($table, $pref) === 0) {
+            return substr($table, strlen($pref));
+        }
+        return $table;
+    }
+}
+
+/**
+ * Stub for db_query() — handles the shared preference store and
+ * ksf_mail_accounts.  Any other table is recorded as unknown and the query
+ * fails the way FrontAccounting's db_query() fails: silently.
  */
 if (!function_exists('db_query')) {
     function db_query(string $sql, string $msg = '')
     {
+        $GLOBALS['_test_sql'][] = $sql;
+
+        $table = _test_statement_table($sql);
+        $bare = $table === null ? '' : _test_strip_prefix($table);
+
         // ---- ksf_mail_accounts SELECT ----
-        if (preg_match("/^SELECT \* FROM .*ksf_mail_accounts.* WHERE owner_type='([^']+)' AND owner_id='([^']+)'/", $sql, $m)) {
+        if ($bare === 'ksf_mail_accounts'
+            && preg_match("/^SELECT \* FROM .*ksf_mail_accounts.* WHERE owner_type='([^']+)' AND owner_id='([^']+)'/", $sql, $m)) {
             $ownerType = $m[1];
             $ownerId = $m[2];
             if (isset($GLOBALS['_test_accounts'][$ownerType][$ownerId])) {
@@ -119,7 +167,8 @@ if (!function_exists('db_query')) {
         }
 
         // ---- ksf_mail_accounts INSERT ... ON DUPLICATE KEY UPDATE ----
-        if (preg_match("/^INSERT INTO .*ksf_mail_accounts.* ON DUPLICATE KEY UPDATE/", $sql)) {
+        if ($bare === 'ksf_mail_accounts'
+            && preg_match("/^INSERT INTO .*ksf_mail_accounts.* ON DUPLICATE KEY UPDATE/", $sql)) {
             // Extract owner_type and owner_id
             preg_match("/VALUES\s*\('([^']+)',\s*'([^']+)'/s", $sql, $m);
             if (!empty($m[1])) {
@@ -152,13 +201,15 @@ if (!function_exists('db_query')) {
         }
 
         // ---- ksf_mail_accounts DELETE ----
-        if (preg_match("/^DELETE FROM .*ksf_mail_accounts.* WHERE owner_type='([^']+)' AND owner_id='([^']+)'/", $sql, $m)) {
+        if ($bare === 'ksf_mail_accounts'
+            && preg_match("/^DELETE FROM .*ksf_mail_accounts.* WHERE owner_type='([^']+)' AND owner_id='([^']+)'/", $sql, $m)) {
             unset($GLOBALS['_test_accounts'][$m[1]][$m[2]]);
             return true;
         }
 
-        // ---- Legacy fa_preference_values SELECT ----
-        if (preg_match("/^SELECT pref_value FROM .*fa_preference_values.* WHERE module_name='([^']+)' AND user_id='([^']+)' AND pref_key='([^']+)'/", $sql, $m)) {
+        // ---- Shared preference store SELECT ----
+        if ($bare === 'ksf_module_prefs'
+            && preg_match("/^SELECT pref_value FROM .*ksf_module_prefs.* WHERE module_name='([^']*)' AND user_id='([^']*)' AND pref_key='([^']+)'/", $sql, $m)) {
             $module = $m[1];
             $uid = $m[2];
             $key = $m[3];
@@ -168,22 +219,29 @@ if (!function_exists('db_query')) {
             return [];
         }
 
-        // ---- Legacy fa_preference_values INSERT ----
-        if (preg_match("/^INSERT INTO .*fa_preference_values.* VALUES\s*\('([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']*?)'\)/s", $sql, $m)) {
+        // ---- Shared preference store INSERT ----
+        if ($bare === 'ksf_module_prefs'
+            && preg_match("/^INSERT INTO .*ksf_module_prefs.* VALUES\s*\('([^']*)',\s*'([^']*)',\s*'([^']+)',\s*'([^']*?)'\)/s", $sql, $m)) {
             $GLOBALS['_test_prefs'][$m[1]][$m[2]][$m[3]] = $m[4];
             return true;
         }
 
-        // ---- Legacy fa_preference_values INSERT ... ON DUPLICATE KEY UPDATE ----
-        if (preg_match("/^INSERT INTO .*fa_preference_values.* ON DUPLICATE KEY UPDATE/", $sql)) {
-            preg_match("/VALUES\s*\('([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']*?)'/s", $sql, $m);
+        // ---- Shared preference store INSERT ... ON DUPLICATE KEY UPDATE ----
+        if ($bare === 'ksf_module_prefs'
+            && preg_match("/^INSERT INTO .*ksf_module_prefs.* ON DUPLICATE KEY UPDATE/", $sql)) {
+            preg_match("/VALUES\s*\('([^']*)',\s*'([^']*)',\s*'([^']+)',\s*'([^']*?)'/s", $sql, $m);
             if (!empty($m[1])) {
                 $GLOBALS['_test_prefs'][$m[1]][$m[2]][$m[3]] = $m[4];
             }
             return true;
         }
 
-        return true;
+        // ---- Anything else: a table this module does not own ----
+        if ($table !== null) {
+            $GLOBALS['_test_unknown_tables'][] = $table;
+        }
+
+        return false;
     }
 }
 
@@ -197,6 +255,17 @@ if (!function_exists('db_fetch_assoc')) {
     }
 }
 
+if (!function_exists('db_fetch_row')) {
+    function db_fetch_row($result)
+    {
+        if (is_array($result) && !empty($result)) {
+            $row = array_shift($result);
+            return is_array($row) ? array_values($row) : [$row];
+        }
+        return false;
+    }
+}
+
 if (!function_exists('db_insert_id')) {
     function db_insert_id(): int
     {
@@ -205,10 +274,13 @@ if (!function_exists('db_insert_id')) {
 }
 
 if (!function_exists('db_escape')) {
+    /**
+     * Mirror FrontAccounting's db_escape(): the value comes back wrapped in
+     * single quotes, because the caller adds none of its own.
+     */
     function db_escape(string $s): string
     {
-        // Simple escape: wrap in quotes and escape single quotes and backslashes
         $s = str_replace(['\\', "'"], ['\\\\', "\\'"], $s);
-        return $s;
+        return "'" . $s . "'";
     }
 }

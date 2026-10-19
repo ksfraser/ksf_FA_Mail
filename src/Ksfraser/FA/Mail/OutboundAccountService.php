@@ -20,8 +20,6 @@ class OutboundAccountService
     public const TYPE_PERSONAL = 'personal';
 
     private const ACCOUNTS_TABLE = 'ksf_mail_accounts';
-    private const PREFS_TABLE = 'fa_preference_values';
-    private const MODULE = 'ksf_FA_Mail';
 
     /**
      * List all available sender accounts for a user.
@@ -134,8 +132,8 @@ class OutboundAccountService
     /**
      * Get a mail account for a given owner.
      *
-     * Reads from `ksf_mail_accounts`.  If none found, attempts auto-migration
-     * from legacy `fa_preference_values`.
+     * Reads from `ksf_mail_accounts`, the module's own store for outbound
+     * credentials.
      *
      * @param string $ownerType Owner scope (e.g. 'user').
      * @param string $ownerId   FK into the owning module's table.
@@ -146,11 +144,6 @@ class OutboundAccountService
         $row = self::dbGetAccount($ownerType, $ownerId);
         if ($row !== null) {
             return self::rowToArray($row);
-        }
-
-        $oldPrefs = self::migrateFromPrefs($ownerType, $ownerId);
-        if (!empty($oldPrefs)) {
-            return $oldPrefs;
         }
 
         return [];
@@ -343,75 +336,9 @@ class OutboundAccountService
         return null;
     }
 
-    private static function migrateFromPrefs(string $ownerType, string $ownerId): array
-    {
-        if ($ownerType !== 'user') {
-            return [];
-        }
-
-        $keys = [
-            'mail_type', 'smtp_host', 'smtp_port', 'smtp_secure',
-            'smtp_username', 'smtp_password', 'bcc_email',
-        ];
-        $prefs = [];
-        foreach ($keys as $key) {
-            $prefs[$key] = self::readOldPref($ownerId, $key, '');
-        }
-        if (empty($prefs['smtp_host'])) {
-            return [];
-        }
-
-        $account = [
-            'smtp_host'     => $prefs['smtp_host'],
-            'smtp_port'     => (int) ($prefs['smtp_port'] ?: 25),
-            'smtp_secure'   => $prefs['smtp_secure'] ?: 'none',
-            'smtp_username' => $prefs['smtp_username'] ?: '',
-            'smtp_password' => $prefs['smtp_password'] ?: '',
-            'bcc_email'     => $prefs['bcc_email'] ?: '',
-        ];
-
-        $username = $account['smtp_username'];
-        if ($username !== '' && strpos($username, '@') !== false) {
-            $parts = explode('@', $username, 2);
-            $account['local_part'] = $parts[0];
-            $account['domain'] = $parts[1];
-        }
-
-        self::saveAccount('user', $ownerId, $account);
-        return $account;
-    }
-
-    private static function readOldPref(string $userId, string $key, string $default): string
-    {
-        if (!function_exists('db_query')) {
-            return $default;
-        }
-        $sql = sprintf(
-            "SELECT pref_value FROM %s WHERE module_name='%s' AND user_id='%s' AND pref_key='%s' LIMIT 1",
-            self::oldPrefsTable(),
-            self::esc(self::MODULE),
-            self::esc($userId),
-            self::esc($key)
-        );
-        $result = self::dbQuery($sql, 'Failed to read mail preference');
-        if ($result && function_exists('db_fetch_assoc')) {
-            $row = db_fetch_assoc($result);
-            if ($row && isset($row['pref_value'])) {
-                $val = json_decode($row['pref_value'], true);
-                return json_last_error() === JSON_ERROR_NONE ? (string) $val : (string) $row['pref_value'];
-            }
-        }
-        return $default;
-    }
-
     private static function accountsTable(): string
     {
         return (defined('TB_PREF') ? TB_PREF : '') . self::ACCOUNTS_TABLE;
-    }
-
-    private static function oldPrefsTable(): string
-    {
-        return (defined('TB_PREF') ? TB_PREF : '') . self::PREFS_TABLE;
     }
 
     private static function esc(string $v): string

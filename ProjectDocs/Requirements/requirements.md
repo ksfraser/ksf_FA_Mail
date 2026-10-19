@@ -1,14 +1,14 @@
 # ksf_FA_Mail — Requirements
 
-**Version:** 2.1.0
-**Date:** 2026-07-05
+**Version:** 2.2.0
+**Date:** 2026-10-19
 
 ## Overview
 SMTP mail module for FrontAccounting using PHPMailer ^6.9, with automatic
 fallback chain: PHPMailer (SMTP) → FA's `send_email()` → PHP `mail()`.
 
 Supports three tiers of outbound accounts via a hook-based sender system:
-**System** (company prefs), **Personal** (per-user `fa_preference_values`),
+**System** (company prefs), **Personal** (per-user `0_ksf_mail_accounts`),
 and **Extensible** (other modules inject senders via hooks).
 
 All outgoing emails include a CASL-compliant footer.
@@ -39,8 +39,8 @@ Provide `class.mail.inc` as a drop-in replacement for
 
 ### FR-010: Personal SMTP per User
 Each FA user may configure their own SMTP server/account/password stored in
-`fa_preference_values` (module `ksf_FA_Mail`), accessible via
-`ksf_preference_get`/`ksf_preference_set` hooks.
+the module's own account table `0_ksf_mail_accounts` (`owner_type` = `user`,
+`owner_id` = the FA user id).
 
 ### FR-011: Personal Mail Setup Page
 A "My Mail Settings" page where users configure their personal SMTP settings.
@@ -53,7 +53,7 @@ by other modules via the `get_available_senders` hook.
 ### FR-013: Sender Resolution
 Selected account value is resolved to a MailerService config array.
 - `system` → reads company prefs (empty config)
-- `personal` → reads `fa_preference_values` for the current user
+- `personal` → reads `0_ksf_mail_accounts` for the current user
 - Other values → dispatched via `resolve_sender_config` hook
 
 ### FR-020: Hook — get_available_senders
@@ -120,8 +120,8 @@ FA user's email from `$_SESSION['wa_current_user']->email` if available.
 
 ### FR-040: Centralized Mail Account Storage (v2.0.0)
 
-A dedicated `ksf_mail_accounts` table replaces `fa_preference_values` for storing
-outbound email account configuration:
+A dedicated `0_ksf_mail_accounts` table stores outbound email account
+configuration:
 
 | Column | Type | Purpose |
 |--------|------|---------|
@@ -144,9 +144,13 @@ outbound email account configuration:
 | created_at | DATETIME | Row creation timestamp |
 | updated_at | DATETIME | Last update timestamp |
 
-The `local_part`/`domain` split enables mass domain updates. `OutboundAccountService`
-auto-migrates from `fa_preference_values` on first read, and falls back to system
-SMTP when no personal account is configured.
+The `local_part`/`domain` split enables mass domain updates.
+`OutboundAccountService` falls back to system SMTP when no personal account is
+configured.
+
+The `0_` prefix is the company prefix: FrontAccounting's `db_import()` replaces
+that literal prefix with the real `TB_PREF` of the company being installed, so
+the schema file must carry it (AGENTS_ARCH.md section 12).
 
 ### FR-044: iCal MIME Structure (v2.0.0)
 

@@ -7,7 +7,10 @@
  *  - "Mail Sending Setup" admin page (System menu)
  *  - "My Mail Settings" user page
  *  - mail_send hook for inter-module email
- *  - ksf_preference_get / ksf_preference_set for personal mail prefs
+ *  - getMailPref / setMailPref for the shared preference store
+ *
+ * Preferences live in the shared cross-module store `0_ksf_module_prefs`
+ * (see \Ksfraser\FA\Mail\Preferences); this module owns no preference table.
  *
  * Hook contracts consumed:
  *   get_available_senders(&$accounts, $userId)
@@ -102,6 +105,13 @@ class hooks_ksf_fa_mail extends hooks
 {
     public $module_name = 'ksf_FA_Mail';
     public $version = '2.4.0';
+
+    /**
+     * Lazily created accessor for the shared preference store.
+     *
+     * @var \Ksfraser\FA\Mail\Preferences|null
+     */
+    private $mailPreferenceStore;
 
     public function install_options($app)
     {
@@ -408,91 +418,64 @@ class hooks_ksf_fa_mail extends hooks
     }
 
     // -----------------------------------------------------------------------
-    // Preference hooks – legacy fa_preference_values (backward compat)
+    // Preferences — shared cross-module store (0_ksf_module_prefs)
     // -----------------------------------------------------------------------
 
-    public function ksf_preference_get(&$payload, $opts = array())
+    /**
+     * Read a Mail preference from the shared preference store.
+     *
+     * The store is the single cross-module table `0_ksf_module_prefs`, keyed
+     * by (module_name, user_id, pref_key) and owned by the shared package
+     * `ksfraser/ksf-fa-common` (AGENTS_ARCH.md section 12).  This module used
+     * to read and write a table named `TB_PREF . 'fa_preference_values'`,
+     * which no release of this module ever created — and which, because
+     * `0_` is the company prefix, also collided with FA core's own `0_fa_*`
+     * namespace.  The old statements were double-quoted as well, so they
+     * failed silently and every write went nowhere.
+     *
+     * @param string $key     Preference key
+     * @param mixed  $default Value returned when the key is unset
+     * @return mixed Stored value (JSON-decoded) or $default
+     */
+    public function getMailPref(string $key, $default = null)
     {
-        if (!is_array($payload) || !isset($payload['module_name'], $payload['user_id'], $payload['pref_key'])) {
-            return null;
-        }
-        if ($payload['module_name'] !== 'ksf_FA_Mail') {
-            return null;
-        }
-        $value = $this->readMailPref((string) $payload['user_id'], (string) $payload['pref_key']);
-        if ($value !== null) {
-            $payload['pref_value'] = $value;
-            $payload['handled'] = true;
-        }
-        return null;
+        return $this->mailPreferences()->get($key, $default);
     }
 
-    public function ksf_preference_set(&$payload, $opts = array())
+    /**
+     * Write a Mail preference to the shared preference store.
+     *
+     * @param string $key   Preference key
+     * @param mixed  $value Value to store
+     * @return bool True when the write was dispatched or executed
+     */
+    public function setMailPref(string $key, $value): bool
     {
-        if (!is_array($payload) || !isset($payload['module_name'], $payload['user_id'], $payload['pref_key'])) {
-            return null;
-        }
-        if ($payload['module_name'] !== 'ksf_FA_Mail') {
-            return null;
-        }
-        $this->writeMailPref(
-            (string) $payload['user_id'],
-            (string) $payload['pref_key'],
-            array_key_exists('pref_value', $payload) ? $payload['pref_value'] : null
-        );
-        $payload['handled'] = true;
-        return true;
+        return $this->mailPreferences()->set($key, $value);
     }
 
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
-    private function prefsTable(): string
+    /**
+     * The module's preference accessor, created on first use.
+     *
+     * The class is resolved through the Composer autoloader rather than
+     * being used by this file directly, so a deployment whose vendor tree is
+     * missing the shared package cannot break the whole application from
+     * hooks.php, which FrontAccounting loads for every registered extension
+     * on every request.
+     *
+     * @return \Ksfraser\FA\Mail\Preferences
+     */
+    private function mailPreferences(): \Ksfraser\FA\Mail\Preferences
     {
-        return (defined('TB_PREF') ? TB_PREF : '') . 'fa_preference_values';
-    }
+        if (!$this->mailPreferenceStore instanceof \Ksfraser\FA\Mail\Preferences) {
+            $this->mailPreferenceStore = new \Ksfraser\FA\Mail\Preferences();
+        }
 
-    private function esc(string $v): string
-    {
-        return function_exists('db_escape') ? db_escape($v) : addslashes($v);
-    }
-
-    private function readMailPref(string $userId, string $prefKey)
-    {
-        if (!function_exists('db_query')) {
-            return null;
-        }
-        $sql = "SELECT pref_value FROM `" . $this->prefsTable() . "`"
-            . " WHERE module_name='ksf_FA_Mail'"
-            . " AND user_id='" . $this->esc($userId) . "'"
-            . " AND pref_key='" . $this->esc($prefKey) . "'"
-            . " LIMIT 1";
-        $result = db_query($sql);
-        if (!$result || !function_exists('db_fetch_assoc')) {
-            return null;
-        }
-        $row = db_fetch_assoc($result);
-        if (!$row || !array_key_exists('pref_value', $row)) {
-            return null;
-        }
-        $decoded = json_decode((string) $row['pref_value'], true);
-        return json_last_error() === JSON_ERROR_NONE ? $decoded : $row['pref_value'];
-    }
-
-    private function writeMailPref(string $userId, string $prefKey, $prefValue): void
-    {
-        if (!function_exists('db_query')) {
-            return;
-        }
-        $sql = "INSERT INTO `" . $this->prefsTable() . "`"
-            . " (module_name, user_id, pref_key, pref_value) VALUES ("
-            . "'ksf_FA_Mail', "
-            . "'" . $this->esc($userId) . "', "
-            . "'" . $this->esc($prefKey) . "', "
-            . "'" . $this->esc(json_encode($prefValue)) . "')"
-            . " ON DUPLICATE KEY UPDATE pref_value=VALUES(pref_value)";
-        db_query($sql);
+        return $this->mailPreferenceStore;
     }
 }
 

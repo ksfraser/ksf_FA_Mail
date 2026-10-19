@@ -1,4 +1,8 @@
-CREATE TABLE IF NOT EXISTS `ksf_mail_accounts` (
+-- The literal `0_` is the company prefix: FA's db_import() replaces it with
+-- the real TB_PREF of the company being installed.  Without it the table was
+-- created unprefixed, while the code read TB_PREF . 'ksf_mail_accounts' —
+-- a name that never existed.
+CREATE TABLE IF NOT EXISTS `0_ksf_mail_accounts` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `owner_type` VARCHAR(32) NOT NULL DEFAULT 'user',
     `owner_id` VARCHAR(60) NOT NULL,

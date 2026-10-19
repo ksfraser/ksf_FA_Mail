@@ -24,10 +24,12 @@
 | FR-034 | Footer user data priority | `MailerService.php::getCurrentUserData()` | — | TC-015 |
 | FR-035 | Warning/error/notification display | `mail_setup.php` | — | TC-014 |
 | FR-036 | Test recipient default | `mail_setup.php` | — | TC-014 |
-| FR-040 | `ksf_mail_accounts` table | `sql/mail_accounts.sql`, `OutboundAccountService.php` | `OutboundAccountServiceTest::testSaveAndGetRoundTrip` | TC-020 |
-| FR-041 | Auto-migration from fa_preference_values | `OutboundAccountService.php::migrateFromLegacy()` | `OutboundAccountServiceTest::testMigrateFromLegacy` | TC-021 |
+| FR-040 | `0_ksf_mail_accounts` table | `sql/mail_accounts.sql`, `OutboundAccountService.php` | `OutboundAccountServiceTest::testSaveAndGetRoundTrip`, `TableNamingTest` | TC-020 |
+| FR-041 | Auto-migration from fa_preference_values | Removed in v2.2.0 (the legacy store never received a row) | — | — |
 | FR-042 | Personal SMTP + SA_OPEN (no security role required) | `my_mail_account.php`, `hooks.php` | `OutboundAccountServiceTest` | TC-023 |
 | FR-043 | Sender resolution: system vs personal | `OutboundAccountService.php::resolveConfig()` | `OutboundAccountServiceTest::testResolveSystemConfigReturnsEmpty` | — |
 | FR-044 | iCal multipart/alternative + Ical property | `MailerService.php::sendIcal()` | `MailerServiceTest::testSendIcalWithoutSmtpFallsBackGracefully`, `CalIcalMailTest` (Calendar repo) | TC-006 |
 | FR-045 | Shared ComposerDependencies::ensure | `hooks.php` bootstrap | `ComposerDependenciesTest` (ksf_FA_Common) | — |
 | FR-046 | sendIcal empty-toEmail guard + BCC filter | `MailerService.php::sendIcal()` | `MailerServiceTest::testSendIcalWithoutSmtpFallsBackGracefully` | TC-006 |
+| FR-047 | Preferences in the shared store `0_ksf_module_prefs` | `Preferences.php`, `hooks.php::getMailPref()`, `hooks.php::setMailPref()` | `PreferencesTest` | TC-021 |
+| FR-048 | Every addressed table exists in the module's schema | `sql/mail_accounts.sql` | `TableNamingTest` | — |

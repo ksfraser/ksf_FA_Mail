@@ -1,5 +1,22 @@
 # Changelog — ksf_FA_Mail
 
+## v2.2.0 — 2026-10-19
+
+### Bug Fixes
+- **Preference store repointed at the shared table** — the module read and wrote `TB_PREF . 'fa_preference_values'` (i.e. `0_fa_preference_values`). No release of this module ever created that table: `sql/preference_values.sql` created a table named `fa_preference_values` (no company prefix) and was never wired into `activate_extension()`'s `update_databases()` map. The statements were double-quoted as well (`db_escape()` already wraps values in quotes and the caller added a second pair), so every statement was a SQL error that FrontAccounting's `db_query()` swallowed — reads came back empty and writes went nowhere, silently. Preferences now live in the shared cross-module store `0_ksf_module_prefs`, reached through `ksfraser/ksf-fa-common`'s `ModulePreferencesTrait` (`\Ksfraser\FA\Mail\Preferences`). `hooks.php` no longer registers the `ksf_preference_get` / `ksf_preference_set` responders: the shared `PreferenceRepository` owns that table, and re-implementing it inside the hook handler would either duplicate the SQL or recurse into the hook dispatch.
+- **`ksf_mail_accounts` schema now carries the company prefix** — `sql/mail_accounts.sql` created `ksf_mail_accounts` without the literal `0_` that `db_import()` replaces, so the table was created unprefixed while the code read `TB_PREF . 'ksf_mail_accounts'`. The module's own store never existed.
+- **Removed the legacy `fa_preference_values` migration** — `OutboundAccountService` used to fall back to the legacy preference store when a user had no row in `ksf_mail_accounts`. That store never received a row (see above), so the fallback could only ever return nothing — and because it queried a table that may not exist with an error message, it turned a missing table into a fatal `E_USER_ERROR` page.
+
+### Removed
+- `sql/preference_values.sql` — schema for the store that never existed.
+- `hooks.php`: `ksf_preference_get()`, `ksf_preference_set()`, `prefsTable()`, `esc()`, `readMailPref()`, `writeMailPref()` — replaced by `getMailPref()` / `setMailPref()`.
+
+### Dependencies
+- Added `ksfraser/ksf-fa-common` (`dev-main`) for the shared preference store and `ModulePreferencesTrait`.
+
+### Testing
+- 33 tests, 58 assertions. New: `PreferencesTest` (shared-store round trip, module-name segment, no unknown table) and `TableNamingTest` (every table the code addresses is created by the module's schema; schema files carry the `0_` company prefix; the legacy name is gone).
+
 ## v2.1.0 — 2026-07-05
 
 ### Bug Fixes

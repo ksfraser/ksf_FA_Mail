@@ -50,15 +50,27 @@ ksf_FA_Mail/
 - Easy updates via `composer update`
 
 ### Why ksf_mail_accounts instead of fa_preference_values? (v2.0.0)
-Starting in v2.0.0, mail account configuration moved from `fa_preference_values` to a
-dedicated `ksf_mail_accounts` table. Benefits:
+Starting in v2.0.0, mail account configuration moved from the legacy preference
+store to a dedicated `0_ksf_mail_accounts` table. Benefits:
 - Relational structure: single row per account, easy to query all users
 - `local_part`/`domain` split enables mass domain updates
 - SMTP + IMAP columns in one table — IMAP ready for future CRM email import
 - `owner_type`/`owner_id` pattern allows other modules (HRM, CRM) to register accounts
 
-Auto-migration from `fa_preference_values` occurs on first read via
-`OutboundAccountService::migrateFromLegacy()`.
+The legacy store was removed in v2.2.0. It never received a row: the module
+read and wrote `TB_PREF . 'fa_preference_values'`, while the schema file
+created a table named `fa_preference_values` and was never wired into the
+activation path, so no release of the module had the table its code
+addressed.
+
+### Where do module preferences live? (v2.2.0)
+In the shared cross-module store `0_ksf_module_prefs`, reached through
+`ksfraser/ksf-fa-common`'s `ModulePreferencesTrait`
+(`\Ksfraser\FA\Mail\Preferences`). The module owns no preference table, and
+`hooks.php` no longer registers `ksf_preference_get` / `ksf_preference_set`
+responders: the shared `PreferenceRepository` owns that table, and a module
+that re-implemented the read inside the hook handler would either duplicate
+the SQL or recurse into the hook dispatch.
 
  ### Multi-Tier Sender System
 Three tiers of outbound accounts, resolved in order:

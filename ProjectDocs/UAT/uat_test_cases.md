@@ -118,12 +118,15 @@
 6. Verify settings persist after page reload
 7. Verify the account appears in sender dropdown when composing email
 
-## TC-021: Mail Account Migration (v2.0.0)
-1. Login as user with legacy `fa_preference_values` mail config
-2. Navigate to My Mail Account
-3. Verify settings are pre-filled from legacy config (auto-migration)
-4. Verify `ksf_mail_accounts` table contains the migrated row
-5. Verify legacy `fa_preference_values` are unchanged
+## TC-021: Module Preferences Use the Shared Store (v2.2.0)
+1. Login as any user
+2. Save a module preference through `hooks_ksf_fa_mail::setMailPref()`
+3. Verify a row exists in `0_ksf_module_prefs` with `module_name` = `ksf_FA_Mail`
+   and the `pref_key` that was saved
+4. Read the preference back through `hooks_ksf_fa_mail::getMailPref()` and
+   verify the saved value is returned
+5. Verify no row is written to `0_fa_preference_values` (that table is not
+   created by this module and must not be referenced)
 
 ## TC-023: My Mail Account Access Without Security Role (v2.1.0)
 1. Login as a user whose security role does NOT include `SA_MAIL_PERSONAL`

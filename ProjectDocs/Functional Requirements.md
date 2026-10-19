@@ -1,7 +1,7 @@
 # Functional Requirements — ksf_FA_Mail
 
-**Version:** 2.1.0
-**Date:** 2026-07-05
+**Version:** 2.2.0
+**Date:** 2026-10-19
 
 | ID | Description | Status |
 |----|-------------|--------|
@@ -10,7 +10,7 @@
 | FR-003 | Fallback chain: PHPMailer → send_email → mail() | Implemented |
 | FR-004 | iCal multipart email support | Implemented |
 | FR-005 | class.mail.inc drop-in replacement | Implemented |
-| FR-010 | Personal SMTP per user in fa_preference_values | Implemented |
+| FR-010 | Personal SMTP per user in `0_ksf_mail_accounts` | Implemented |
 | FR-011 | My Mail Settings user page | Implemented |
 | FR-012 | Sender DDL in compose UI (hook-extensible) | Implemented |
 | FR-013 | Sender resolution: system/personal/hook | Implemented |
@@ -25,9 +25,11 @@
 | FR-035 | Warning (amber) display for validation messages, error (red) for failures, notification (green) for success | Implemented |
 | FR-036 | Test recipient field pre-filled with current user's email from session | Implemented |
 | FR-040 | `ksf_mail_accounts` table with `local_part`/`domain` split, SMTP + IMAP columns, `owner_type`/`owner_id` | Implemented |
-| FR-041 | Auto-migration from `fa_preference_values` to `ksf_mail_accounts` on first read | Implemented |
+| FR-041 | Auto-migration from `fa_preference_values` to `ksf_mail_accounts` on first read | Removed — the legacy store never received a row, so the fallback could only return nothing (and turned a missing table into a fatal error) |
 | FR-042 | My Mail Account accessible to all authenticated users (SA_OPEN); mail managers SA_MAIL_MANAGE | Implemented |
 | FR-043 | Personal credentials override system SMTP (FROM); system SMTP + Reply-To set to Calendar inviter as fallback | Implemented |
 | FR-044 | iCal `Ical` property (PHPMailer) + `addStringAttachment` for SMTP path; `multipart/alternative` for fallback | Implemented |
 | FR-045 | Shared `ComposerDependencies::ensure()` from `ksf_FA_Common` — no inline bootstrap duplication | Implemented |
 | FR-046 | `sendIcal` guards against empty/invalid `toEmail` and filters empty BCC addresses | Implemented |
+| FR-047 | Module preferences stored in the shared cross-module store `0_ksf_module_prefs` via `ModulePreferencesTrait` | Implemented |
+| FR-048 | Every table the module addresses is created by the module's own schema (guarded by `TableNamingTest`) | Implemented |

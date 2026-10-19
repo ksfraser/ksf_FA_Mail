@@ -5,7 +5,7 @@
 SMTP mail module for FrontAccounting using PHPMailer. Supports outbound
 accounts via a **hook‑based sender system**:
 - **System** — admin-managed, stored in company prefs (built-in)
-- **Personal** — per-user SMTP, stored in `fa_preference_values` (built-in)
+- **Personal** — per-user SMTP, stored in `0_ksf_mail_accounts` (built-in)
 - **Extensible** — other modules (HRM, CRM) add senders via `get_available_senders`
   and `resolve_sender_config` hooks, using contacts + prefs without coupling
 Fallback chain: SMTP → FA's `send_email()` → PHP `mail()`.
@@ -23,9 +23,10 @@ ksf_FA_Mail/
 │   └── Ksfraser/FA/Mail/
 │       ├── MailerService.php            # Core mailer — accepts account config
 │       ├── SetupController.php          # System setup page business logic
-│       └── OutboundAccountService.php   # Account selector DDL + personal prefs
+│       ├── OutboundAccountService.php   # Account selector DDL + account CRUD
+│       └── Preferences.php              # Shared preference store (0_ksf_module_prefs)
 ├── sql/
-│   └── preference_values.sql
+│   └── mail_accounts.sql
 ├── tests/
 │   ├── bootstrap.php       # FA function stubs + in-memory pref table
 │   └── Unit/
@@ -38,10 +39,26 @@ ksf_FA_Mail/
 ## Dependencies
 - **phpmailer/phpmailer** ^6.9 — SMTP mail sending
 - **ksfraser/exceptions** — shared exception library
+- **ksfraser/ksf-fa-common** (`dev-main`) — shared platform package; supplies
+  `PreferenceRepository` / `ModulePreferencesTrait` for the shared preference
+  store `0_ksf_module_prefs`
 - **FrontAccounting 2.4+**
+
+## Preferences
+The module owns **no** preference table. Preferences live in the shared
+cross-module store `0_ksf_module_prefs` and are reached through
+`\Ksfraser\FA\Mail\Preferences` (which uses the shared package's
+`ModulePreferencesTrait`); `hooks.php` exposes `getMailPref()` / `setMailPref()`.
+The old `TB_PREF . 'fa_preference_values'` store was removed in v2.2.0: no
+release of this module ever created that table, and because FrontAccounting's
+`db_query()` swallows statement failures, the broken store failed *silently*.
+
+**Rule for this module:** every table the code addresses must be created by a
+file in `sql/`, with the literal `0_` company prefix (`db_import()` only
+replaces that literal). `TableNamingTest` enforces both.
 ## Account Resolution
 1. **System** → `MailerService([])` reads company prefs (`get_company_pref`)
-2. **Personal** → `OutboundAccountService::getPersonalConfig($userId)` reads from `fa_preference_values` via `ksf_preference_get`/`ksf_preference_set` hooks (or direct DB fallback)
+2. **Personal** → `OutboundAccountService::getPersonalConfig($userId)` reads from `0_ksf_mail_accounts`
 3. **Other types** (team, department) → resolved via `resolve_sender_config` hook — other modules return SMTP config
 The DDL selector (`OutboundAccountService::renderSelector`) fires `get_available_senders`
 hook so other modules inject their entries. Built-in: system + personal.
