@@ -18,7 +18,7 @@ use ksfraser\FrontAccounting\Common\Traits\ModulePreferencesTrait;
  *
  *  - v0.1.0 of this module shipped `sql/preference_values.sql`, creating a
  *    table literally named `fa_preference_values`, and read/wrote it as
- *    `TB_PREF . 'fa_preference_values'` (i.e. `0_fa_preference_values`).
+ *    `TB_PREF . 'fa_preference_values'` (the legacy fa_-prefixed store).
  *    The two names never matched, the file was never wired into
  *    `activate_extension()`'s `update_databases()` map, and the SQL it
  *    produced was double-quoted (`db_escape()` already wraps values in

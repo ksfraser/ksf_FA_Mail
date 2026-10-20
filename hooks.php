@@ -427,7 +427,8 @@ class hooks_ksf_fa_mail extends hooks
      * The store is the single cross-module table `0_ksf_module_prefs`, keyed
      * by (module_name, user_id, pref_key) and owned by the shared package
      * `ksfraser/ksf-fa-common` (AGENTS_ARCH.md section 12).  This module used
-     * to read and write a table named `TB_PREF . 'fa_preference_values'`,
+     * to read and write a table named `TB_PREF . 'fa_preference_values'`
+     * (the legacy fa_-prefixed preference store),
      * which no release of this module ever created — and which, because
      * `0_` is the company prefix, also collided with FA core's own `0_fa_*`
      * namespace.  The old statements were double-quoted as well, so they

@@ -41,7 +41,7 @@ class TableNamingTest extends TestCase
      *
      * @var string
      */
-    private const LEGACY_TABLE = 'fa_preference_values';
+    private const LEGACY_PREFERENCE_NAME = 'fa_preference_values';
 
     public function testEveryAddressedTableIsCreatedByTheModuleSchema(): void
     {
@@ -71,7 +71,7 @@ class TableNamingTest extends TestCase
         foreach ($this->moduleFiles() as $file) {
             $contents = $this->code((string) file_get_contents($file));
             $this->assertStringNotContainsString(
-                self::LEGACY_TABLE,
+                self::LEGACY_PREFERENCE_NAME,
                 $contents,
                 sprintf('%s still references the legacy preference table.', $file)
             );
